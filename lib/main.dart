@@ -1,24 +1,148 @@
+// ignore_for_file: deprecated_member_use
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 void main() => runApp(const KLifeGuideApp());
 
 class C {
-  static const bg = Color(0xFFF7F8FA);
-  static const black = Color(0xFF191F28);
-  static const gray = Color(0xFF6B7684);
-  static const light = Color(0xFFE5E8EB);
-  static const blue = Color(0xFF3182F6);
-  static const blueSoft = Color(0xFFE8F3FF);
-  static const green = Color(0xFF00A86B);
-  static const greenSoft = Color(0xFFE7F8F0);
-  static const orange = Color(0xFFFF8A00);
-  static const orangeSoft = Color(0xFFFFF3E0);
+  static const bg = Color(0xFFF6F8FC);
+  static const black = Color(0xFF172033);
+  static const gray = Color(0xFF667085);
+  static const light = Color(0xFFE3E8F2);
+  static const blue = Color(0xFF2563EB);
+  static const blueSoft = Color(0xFFEAF1FF);
+  static const green = Color(0xFF2563EB);
+  static const greenSoft = Color(0xFFEAF1FF);
+  static const orange = Color(0xFF4F6FAD);
+  static const orangeSoft = Color(0xFFEFF4FF);
+  static const red = Color(0xFFDC2626);
+  static const redSoft = Color(0xFFFFF1F2);
+  static const inkSoft = Color(0xFFF0F4FA);
+  static const navy = Color(0xFF0F1E3A);
+  static const cardBorder = Color(0xFFD8E1F0);
+  static const chipBg = Color(0xFFF3F7FD);
 }
 
 enum AppLang { ko, en }
 enum MissionType { verify, guide }
 enum MissionFilter { all, verify, guide }
 enum BoardFilter { free, qna }
+
+class CommunityPost {
+  const CommunityPost({
+    required this.board,
+    required this.titleKo,
+    required this.titleEn,
+    required this.metaKo,
+    required this.metaEn,
+    this.solved = false,
+  });
+
+  final BoardFilter board;
+  final String titleKo;
+  final String titleEn;
+  final String metaKo;
+  final String metaEn;
+  final bool solved;
+
+  String title(AppLang lang) => lang == AppLang.ko ? titleKo : titleEn;
+  String meta(AppLang lang) => lang == AppLang.ko ? metaKo : metaEn;
+}
+
+final communityPosts = ValueNotifier<List<CommunityPost>>([
+  CommunityPost(
+    board: BoardFilter.qna,
+    titleKo: 'T머니 충전은 어디서 할 수 있나요?',
+    titleEn: 'Where can I top up T-money?',
+    metaKo: '댓글 3 · 추천 5 · 해결됨',
+    metaEn: '3 replies · 5 likes · Solved',
+    solved: true,
+  ),
+  CommunityPost(
+    board: BoardFilter.qna,
+    titleKo: '외국인등록증 예약은 어떻게 하나요?',
+    titleEn: 'How do I reserve an ARC visit?',
+    metaKo: '댓글 8 · 추천 12 · 행정',
+    metaEn: '8 replies · 12 likes · Admin',
+  ),
+  CommunityPost(
+    board: BoardFilter.qna,
+    titleKo: '배달앱 주소 입력이 계속 실패해요',
+    titleEn: 'My delivery address keeps failing',
+    metaKo: '댓글 4 · 추천 9 · 배달',
+    metaEn: '4 replies · 9 likes · Delivery',
+  ),
+  CommunityPost(
+    board: BoardFilter.free,
+    titleKo: '처음 한국 지하철을 타본 후기',
+    titleEn: 'My first time using the Korean subway',
+    metaKo: '댓글 2 · 추천 7',
+    metaEn: '2 replies · 7 likes',
+  ),
+  CommunityPost(
+    board: BoardFilter.free,
+    titleKo: '편의점에서 자주 쓰는 말 정리',
+    titleEn: 'Useful words at convenience stores',
+    metaKo: '댓글 1 · 추천 4',
+    metaEn: '1 reply · 4 likes',
+  ),
+
+]);
+
+class UserProgressState {
+  const UserProgressState({
+    this.points = 2840,
+    this.xp = 680,
+    this.completedMissionTitles = const <String>{
+      '지하철 노선 확인하기',
+      '분리수거 방법 익히기',
+      '편의점에서 상품 구매하기',
+    },
+  });
+
+  final int points;
+  final int xp;
+  final Set<String> completedMissionTitles;
+
+  int get level => 3 + (xp ~/ 500);
+  int get completedCount => completedMissionTitles.length;
+
+  UserProgressState copyWith({
+    int? points,
+    int? xp,
+    Set<String>? completedMissionTitles,
+  }) {
+    return UserProgressState(
+      points: points ?? this.points,
+      xp: xp ?? this.xp,
+      completedMissionTitles: completedMissionTitles ?? this.completedMissionTitles,
+    );
+  }
+}
+
+final userProgress = ValueNotifier<UserProgressState>(const UserProgressState());
+
+bool isMissionCompleted(Mission mission) {
+  return userProgress.value.completedMissionTitles.contains(mission.koTitle);
+}
+
+void completeMission(Mission mission) {
+  final current = userProgress.value;
+  if (current.completedMissionTitles.contains(mission.koTitle)) {
+    return;
+  }
+
+  userProgress.value = current.copyWith(
+    points: current.points + mission.point,
+    xp: current.xp + mission.xp,
+    completedMissionTitles: {
+      ...current.completedMissionTitles,
+      mission.koTitle,
+    },
+  );
+}
+
 
 class Mission {
   const Mission({
@@ -338,7 +462,11 @@ class _KLifeGuideAppState extends State<KLifeGuideApp> {
       theme: ThemeData(
         useMaterial3: true,
         scaffoldBackgroundColor: C.bg,
-        colorScheme: ColorScheme.fromSeed(seedColor: C.blue),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: C.blue,
+          primary: C.blue,
+          surface: Colors.white,
+        ),
         navigationBarTheme: NavigationBarThemeData(
           height: 74,
           backgroundColor: Colors.white,
@@ -399,7 +527,7 @@ class LoginPage extends StatelessWidget {
                 width: 72,
                 height: 72,
                 decoration: BoxDecoration(
-                  color: C.black,
+                  color: C.blue,
                   borderRadius: BorderRadius.circular(26),
                   boxShadow: const [
                     BoxShadow(
@@ -430,7 +558,7 @@ class LoginPage extends StatelessWidget {
               Text(
                 en
                     ? 'Transport, food, and admin guides\nfor foreigners living in Korea.'
-                    : '교통, 음식, 행정 가이드까지\n외국인을 위한 정착 정보를 한 곳에서 확인하세요.',
+                    : '교통카드, 배달, 병원, 행정 업무까지\n한국 생활에 필요한 일을 쉽게 따라 해보세요.',
                 style: const TextStyle(
                   color: C.gray,
                   fontSize: 16,
@@ -441,14 +569,14 @@ class LoginPage extends StatelessWidget {
               const SizedBox(height: 34),
               FeatureCard(
                 icon: Icons.flag_rounded,
-                title: en ? 'Mission-based guide' : '미션 기반 정착 가이드',
-                subtitle: en ? 'Follow practical steps one by one' : '해야 할 일을 단계별로 확인하고 완료해요',
+                title: en ? 'Mission-based guide' : '하나씩 따라 하는 정착 미션',
+                subtitle: en ? 'Follow practical steps one by one' : '처음 해보는 일도 순서대로 따라 할 수 있어요',
               ),
               const SizedBox(height: 10),
               FeatureCard(
                 icon: Icons.card_giftcard_rounded,
-                title: en ? 'XP and point rewards' : 'XP와 포인트 보상',
-                subtitle: en ? 'Grow your level as you complete missions' : '완료할 때마다 성장 기록이 쌓여요',
+                title: en ? 'XP and point rewards' : '완료 기록과 포인트',
+                subtitle: en ? 'Grow your level as you complete missions' : '내가 해결한 생활 미션이 기록으로 남아요',
               ),
               const Spacer(),
               PrimaryButton(
@@ -538,6 +666,7 @@ class _TabsState extends State<Tabs> {
   }
 }
 
+
 class HomeScreen extends StatelessWidget {
   const HomeScreen({
     super.key,
@@ -554,79 +683,442 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final active = missions.where((m) => m.progress > 0).toList();
 
-    return PageShell(
-      lang: lang,
-      onLangChanged: onLangChanged,
-      title: en ? 'Home' : '홈',
-      subtitle: en ? 'One more step toward life in Korea.' : '오늘도 한국 생활에 한 걸음 더 가까워져요.',
-      children: [
-        ProfileCard(lang: lang),
-        const SizedBox(height: 14),
-        TodayBriefCard(
+    return ValueListenableBuilder<UserProgressState>(
+      valueListenable: userProgress,
+      builder: (context, progress, _) {
+        final completedTitles = progress.completedMissionTitles.toList();
+
+        return PageShell(
           lang: lang,
-          onPrimaryTap: () => openMission(context, missions.first, lang, onLangChanged),
-          onSecondaryTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => TodayChecklistScreen(lang: lang),
+          onLangChanged: onLangChanged,
+          title: en ? 'Home' : '홈',
+          subtitle: en ? 'One more step toward life in Korea.' : '오늘 필요한 한국 생활 업무를 하나씩 해결해요.',
+          children: [
+            ProfileCard(lang: lang),
+            const SizedBox(height: 14),
+            TodayBriefCard(
+              lang: lang,
+              onPrimaryTap: () => openMission(context, missions.first, lang, onLangChanged),
+              onSecondaryTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => TodayChecklistScreen(lang: lang),
+                ),
+              ),
             ),
-          ),
-        ),
-        const SizedBox(height: 14),
-        KLifePassportCard(
-          lang: lang,
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => PassportScreen(lang: lang)),
-          ),
-        ),
-        const SizedBox(height: 14),
-        SurvivalPhraseCard(
-          lang: lang,
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => SurvivalPhraseScreen(lang: lang)),
-          ),
-        ),
-        const SizedBox(height: 14),
-        SettlementRoadmapCard(
-          lang: lang,
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => SettlementRoadmapScreen(lang: lang)),
-          ),
-        ),
-        Header(
-          title: en ? 'In progress' : '진행 중인 미션',
-          action: '${active.length}',
-        ),
-        ...active.map(
-          (m) => MissionCard(
-            mission: m,
-            lang: lang,
-            onTap: () => openMission(context, m, lang, onLangChanged),
-          ),
-        ),
-        Header(
-          title: en ? 'Completed' : '완료한 미션',
-          action: '3',
-        ),
-        DoneTile(
-          title: en ? 'Check subway routes' : '지하철 노선 확인하기',
-          lang: lang,
-        ),
-        DoneTile(
-          title: en ? 'Learn recycling rules' : '분리수거 방법 익히기',
-          lang: lang,
-        ),
-        DoneTile(
-          title: en ? 'Buy something at a convenience store' : '편의점에서 상품 구매하기',
-          lang: lang,
-        ),
-      ],
+            const SizedBox(height: 14),
+            ServiceToolkitCard(
+              lang: lang,
+              onPhraseTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => SurvivalPhraseScreen(lang: lang)),
+              ),
+              onDeliveryTap: () => openMission(context, missions[5], lang, onLangChanged),
+              onEmergencyTap: () => openMission(context, missions[9], lang, onLangChanged),
+            ),
+            const SizedBox(height: 14),
+            EmergencyQuickCard(lang: lang),
+            const SizedBox(height: 14),
+            KLifePassportCard(
+              lang: lang,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => PassportScreen(lang: lang)),
+              ),
+            ),
+            const SizedBox(height: 14),
+            SettlementRoadmapCard(
+              lang: lang,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => SettlementRoadmapScreen(lang: lang)),
+              ),
+            ),
+            Header(
+              title: en ? 'In progress' : '진행 중인 미션',
+              action: '${active.length}',
+            ),
+            ...active.map(
+              (m) => MissionCard(
+                mission: m,
+                lang: lang,
+                onTap: () => openMission(context, m, lang, onLangChanged),
+              ),
+            ),
+            Header(
+              title: en ? 'Completed' : '완료한 미션',
+              action: '${progress.completedCount}',
+            ),
+            ...completedTitles.take(5).map(
+              (title) => DoneTile(
+                title: title,
+                lang: lang,
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
+
+
+class ServiceToolkitCard extends StatelessWidget {
+  const ServiceToolkitCard({
+    super.key,
+    required this.lang,
+    required this.onPhraseTap,
+    required this.onDeliveryTap,
+    required this.onEmergencyTap,
+  });
+
+  final AppLang lang;
+  final VoidCallback onPhraseTap;
+  final VoidCallback onDeliveryTap;
+  final VoidCallback onEmergencyTap;
+
+  bool get en => lang == AppLang.en;
+
+  @override
+  Widget build(BuildContext context) {
+    return TossCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              IconBox(
+                icon: Icons.home_repair_service_rounded,
+                color: C.blue,
+                bg: C.blueSoft,
+              ),
+              const SizedBox(width: 13),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      en ? 'Essential tools for today' : '지금 필요한 생활 도구',
+                      style: const TextStyle(
+                        color: C.black,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      en
+                          ? 'Quick actions for situations foreigners actually face in Korea.'
+                          : '택시, 배달, 병원처럼 자주 막히는 상황을 바로 처리해요.',
+                      style: const TextStyle(
+                        color: C.gray,
+                        fontSize: 13,
+                        height: 1.35,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          ServiceToolRow(
+            icon: Icons.translate_rounded,
+            title: en ? 'Show Korean phrases' : '상황별 한국어 문장',
+            subtitle: en ? 'Taxi, clinic, bank, delivery' : '기사님·약사·은행 직원에게 바로 보여주기',
+            onTap: onPhraseTap,
+          ),
+          const SizedBox(height: 8),
+          ServiceToolRow(
+            icon: Icons.delivery_dining_rounded,
+            title: en ? 'Prepare delivery order' : '배달 주문 전에 확인',
+            subtitle: en ? 'Address, request note, payment' : '주소 입력, 요청사항, 결제까지',
+            onTap: onDeliveryTap,
+          ),
+          const SizedBox(height: 8),
+          ServiceToolRow(
+            icon: Icons.contact_phone_rounded,
+            title: en ? 'Save emergency contacts' : '긴급 연락처 저장하기',
+            subtitle: en ? '119, 112, school or workplace' : '119·112·학교·회사 연락처',
+            onTap: onEmergencyTap,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class ServiceToolRow extends StatelessWidget {
+  const ServiceToolRow({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.all(13),
+        decoration: BoxDecoration(
+          color: C.chipBg,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Icon(icon, color: C.blue, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: C.black,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      color: C.gray,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: C.gray,
+              size: 22,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+
+class EmergencyQuickCard extends StatelessWidget {
+  const EmergencyQuickCard({
+    super.key,
+    required this.lang,
+  });
+
+  final AppLang lang;
+
+  bool get en => lang == AppLang.en;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(color: C.cardBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              IconBox(
+                icon: Icons.sos_rounded,
+                color: C.blue,
+                bg: C.blueSoft,
+              ),
+              const SizedBox(width: 13),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      en ? 'Emergency help card' : '긴급 상황 도움말',
+                      style: const TextStyle(
+                        color: C.black,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      en
+                          ? 'Copy a number with a Korean sentence you can show immediately.'
+                          : '전화번호와 도움 요청 문장을 함께 복사해서 보여줄 수 있어요.',
+                      style: const TextStyle(
+                        color: C.gray,
+                        fontSize: 13,
+                        height: 1.35,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          EmergencyContactRow(
+            icon: Icons.local_hospital_rounded,
+            title: en ? '119 Emergency' : '119 응급·화재·구조',
+            subtitle: en ? 'Ambulance, fire, rescue' : '구급차, 화재, 구조 요청',
+            number: '119',
+            phrase: en ? 'Please call 119.' : '119에 전화해주세요.',
+            lang: lang,
+          ),
+          const SizedBox(height: 8),
+          EmergencyContactRow(
+            icon: Icons.local_police_rounded,
+            title: en ? '112 Police' : '112 경찰 신고',
+            subtitle: en ? 'Crime, danger, urgent police help' : '범죄, 위험 상황, 경찰 도움 요청',
+            number: '112',
+            phrase: en ? 'Please call the police.' : '경찰을 불러주세요.',
+            lang: lang,
+          ),
+          const SizedBox(height: 8),
+          EmergencyContactRow(
+            icon: Icons.support_agent_rounded,
+            title: en ? '1330 Travel helpline' : '1330 관광·통역 안내',
+            subtitle: en ? 'Korea travel and interpretation help' : '관광 안내와 통역 도움',
+            number: '1330',
+            phrase: en ? 'I do not speak Korean well.' : '한국어를 잘 못해요.',
+            lang: lang,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class EmergencyContactRow extends StatelessWidget {
+  const EmergencyContactRow({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.number,
+    required this.phrase,
+    required this.lang,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final String number;
+  final String phrase;
+  final AppLang lang;
+
+  bool get en => lang == AppLang.en;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: C.blueSoft,
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: Icon(icon, color: C.blue, size: 21),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: C.black,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  '$subtitle · $phrase',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: C.gray,
+                    fontSize: 12,
+                    height: 1.25,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          InkWell(
+            onTap: () async {
+              await Clipboard.setData(ClipboardData(text: '$number\n$phrase\nK-Life Guide emergency help'));
+              if (context.mounted) {
+                toast(
+                  context,
+                  en ? '$number copied with phrase.' : '$number 번호와 문장을 복사했습니다.',
+                );
+              }
+            },
+            borderRadius: BorderRadius.circular(14),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
+              decoration: BoxDecoration(
+                color: C.blueSoft,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Text(
+                en ? 'Copy help' : '도움 복사',
+                style: const TextStyle(
+                  color: C.blue,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 
 class MissionScreen extends StatefulWidget {
   const MissionScreen({
@@ -689,6 +1181,7 @@ class _MissionScreenState extends State<MissionScreen> {
   }
 }
 
+
 class CommunityScreen extends StatefulWidget {
   const CommunityScreen({
     super.key,
@@ -710,71 +1203,94 @@ class _CommunityScreenState extends State<CommunityScreen> {
   Widget build(BuildContext context) {
     final en = widget.lang == AppLang.en;
 
-    final qna = [
-      [
-        en ? 'Where can I top up T-money?' : 'T머니 충전은 어디서 할 수 있나요?',
-        en ? '3 replies · 5 likes' : '댓글 3 · 추천 5',
-      ],
-      [
-        en ? 'How do I reserve an ARC visit?' : '외국인등록증 예약은 어떻게 하나요?',
-        en ? '8 replies · 12 likes' : '댓글 8 · 추천 12',
-      ],
-    ];
+    return ValueListenableBuilder<List<CommunityPost>>(
+      valueListenable: communityPosts,
+      builder: (context, allPosts, _) {
+        final posts = allPosts.where((p) => p.board == filter).toList();
+        final solvedCount = allPosts.where((p) => p.solved).length;
 
-    final free = [
-      [
-        en ? 'My first time using the Korean subway' : '처음 한국 지하철을 타본 후기',
-        en ? '2 replies · 7 likes' : '댓글 2 · 추천 7',
-      ],
-      [
-        en ? 'Useful words at convenience stores' : '편의점에서 자주 쓰는 말 정리',
-        en ? '1 reply · 4 likes' : '댓글 1 · 추천 4',
-      ],
-    ];
-
-    final posts = filter == BoardFilter.qna ? qna : free;
-
-    return PageShell(
-      lang: widget.lang,
-      onLangChanged: widget.onLangChanged,
-      title: en ? 'Community' : '커뮤니티',
-      subtitle: en ? 'Ask questions and share local tips.' : '질문하고 생활 정보를 공유해요.',
-      children: [
-        CommunityPulseCard(lang: widget.lang),
-        const SizedBox(height: 14),
-        FilterBar(
-          labels: en ? const ['Free board', 'Q&A'] : const ['자유게시판', 'Q&A'],
-          selected: filter.index,
-          onTap: (i) => setState(() => filter = BoardFilter.values[i]),
-        ),
-        Header(
-          title: filter == BoardFilter.qna
-              ? (en ? 'Popular Q&A' : '인기 질문')
-              : (en ? 'Free board' : '자유게시판'),
-        ),
-        ...posts.map(
-          (p) => PostTile(
-            board: filter == BoardFilter.qna ? 'Q&A' : 'FREE',
-            title: p[0],
-            meta: p[1],
-            onTap: () => openPost(context, p[0], widget.lang),
-          ),
-        ),
-        const SizedBox(height: 18),
-        PrimaryButton(
-          label: en ? 'Write post' : '글쓰기',
-          icon: Icons.edit_rounded,
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => WritePostScreen(lang: widget.lang),
+        return PageShell(
+          lang: widget.lang,
+          onLangChanged: widget.onLangChanged,
+          title: en ? 'Community' : '커뮤니티',
+          subtitle: en ? 'Ask questions and share local tips.' : '혼자 해결하기 어려운 한국 생활 문제를 물어보세요.',
+          children: [
+            CommunityPulseCard(
+              lang: widget.lang,
+              postCount: allPosts.length,
+              solvedCount: solvedCount,
             ),
-          ),
-        ),
-      ],
+            const SizedBox(height: 14),
+            FilterBar(
+              labels: en ? const ['Free board', 'Q&A'] : const ['자유게시판', 'Q&A'],
+              selected: filter.index,
+              onTap: (i) => setState(() => filter = BoardFilter.values[i]),
+            ),
+            Header(
+              title: filter == BoardFilter.qna
+                  ? (en ? 'Real-life Q&A' : '실생활 질문')
+                  : (en ? 'Free board' : '자유게시판'),
+              action: '${posts.length}',
+            ),
+            if (posts.isEmpty)
+              TossCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    IconBox(
+                      icon: Icons.chat_bubble_outline_rounded,
+                      color: C.gray,
+                      bg: C.inkSoft,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      en ? 'No posts yet' : '아직 게시글이 없습니다',
+                      style: const TextStyle(
+                        color: C.black,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      en
+                          ? 'Write the first question about life in Korea.'
+                          : '주소 입력, 병원 접수, 행정 예약처럼 막힌 부분을 자세히 적어보세요.',
+                      style: const TextStyle(
+                        color: C.gray,
+                        height: 1.4,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ...posts.map(
+              (p) => PostTile(
+                board: p.board == BoardFilter.qna ? 'Q&A' : 'FREE',
+                title: p.title(widget.lang),
+                meta: p.meta(widget.lang),
+                onTap: () => openPost(context, p.title(widget.lang), widget.lang),
+              ),
+            ),
+            const SizedBox(height: 18),
+            PrimaryButton(
+              label: en ? 'Write post' : '글쓰기',
+              icon: Icons.edit_rounded,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => WritePostScreen(lang: widget.lang),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
+
 
 
 class MissionInsightCard extends StatelessWidget {
@@ -793,11 +1309,11 @@ class MissionInsightCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: C.black,
+        color: C.navy,
         borderRadius: BorderRadius.circular(30),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x26000000),
+            color: Color(0x1F0F1E3A),
             blurRadius: 24,
             offset: Offset(0, 12),
           ),
@@ -925,9 +1441,13 @@ class CommunityPulseCard extends StatelessWidget {
   const CommunityPulseCard({
     super.key,
     required this.lang,
+    required this.postCount,
+    required this.solvedCount,
   });
 
   final AppLang lang;
+  final int postCount;
+  final int solvedCount;
 
   bool get en => lang == AppLang.en;
 
@@ -937,11 +1457,11 @@ class CommunityPulseCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: C.black,
+        color: C.navy,
         borderRadius: BorderRadius.circular(30),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x26000000),
+            color: Color(0x1F0F1E3A),
             blurRadius: 24,
             offset: Offset(0, 12),
           ),
@@ -976,7 +1496,7 @@ class CommunityPulseCard extends StatelessWidget {
               ),
               const Spacer(),
               Text(
-                en ? '12 solved' : '12건 해결',
+                en ? '$solvedCount solved' : '$solvedCount건 해결',
                 style: TextStyle(
                   color: Colors.white.withOpacity(.72),
                   fontWeight: FontWeight.w900,
@@ -986,7 +1506,7 @@ class CommunityPulseCard extends StatelessWidget {
           ),
           const SizedBox(height: 18),
           Text(
-            en ? 'Ask fast. Get practical Korean life tips.' : '빠르게 묻고, 실제 한국 생활 답변을 받아요',
+            en ? 'Ask when Korean systems are confusing.' : '한국 생활 절차가 헷갈릴 때 바로 물어보세요',
             style: const TextStyle(
               color: Colors.white,
               fontSize: 23,
@@ -998,8 +1518,8 @@ class CommunityPulseCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             en
-                ? 'Solved answers are highlighted so newcomers can trust what to do next.'
-                : '해결된 답변을 우선 보여줘서 새 정착자가 다음 행동을 쉽게 결정할 수 있습니다.',
+                ? 'Q&A focuses on real problems: ARC visits, T-money, delivery addresses, clinics, banking, and waste sorting.'
+                : '외국인등록, T머니, 배달 주소, 병원, 은행, 분리수거처럼 실제 막히는 문제 중심으로 답변합니다.',
             style: TextStyle(
               color: Colors.white.withOpacity(.68),
               fontSize: 14,
@@ -1012,9 +1532,9 @@ class CommunityPulseCard extends StatelessWidget {
             children: [
               Expanded(child: CommunityPulseStat(label: en ? 'Avg reply' : '평균 답변', value: en ? '8 min' : '8분')),
               const SizedBox(width: 8),
-              Expanded(child: CommunityPulseStat(label: en ? 'Solved' : '해결률', value: '84%')),
+              Expanded(child: CommunityPulseStat(label: en ? 'Posts' : '게시글', value: '$postCount')),
               const SizedBox(width: 8),
-              Expanded(child: CommunityPulseStat(label: en ? 'Helpers' : '도움 유저', value: '32')),
+              Expanded(child: CommunityPulseStat(label: en ? 'Solved' : '해결', value: '$solvedCount')),
             ],
           ),
         ],
@@ -1065,6 +1585,7 @@ class CommunityPulseStat extends StatelessWidget {
   }
 }
 
+
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({
     super.key,
@@ -1079,101 +1600,116 @@ class ProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PageShell(
-      lang: lang,
-      onLangChanged: onLangChanged,
-      title: en ? 'Profile' : '프로필',
-      subtitle: en ? 'Track your settlement progress.' : '나의 정착 성장 기록을 확인해요.',
-      children: [
-        ProfileCard(
+    return ValueListenableBuilder<UserProgressState>(
+      valueListenable: userProgress,
+      builder: (context, progress, _) {
+        return PageShell(
           lang: lang,
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => PointHistoryScreen(lang: lang)),
-          ),
-        ),
-        const SizedBox(height: 12),
-        Row(
+          onLangChanged: onLangChanged,
+          title: en ? 'Profile' : '프로필',
+          subtitle: en ? 'Track your settlement progress.' : '나의 정착 성장 기록을 확인해요.',
           children: [
-            Expanded(
-              child: InkWell(
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => BadgeCollectionScreen(lang: lang),
+            ProfileCard(
+              lang: lang,
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => PointHistoryScreen(lang: lang)),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: InkWell(
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => BadgeCollectionScreen(lang: lang),
+                      ),
+                    ),
+                    borderRadius: BorderRadius.circular(28),
+                    child: SummaryBox(
+                      icon: Icons.workspace_premium_rounded,
+                      title: en ? 'Badges' : '뱃지',
+                      value: progress.completedCount >= 5 ? '5' : '4',
+                    ),
                   ),
                 ),
-                borderRadius: BorderRadius.circular(28),
-                child: SummaryBox(
-                  icon: Icons.workspace_premium_rounded,
-                  title: en ? 'Badges' : '뱃지',
-                  value: '4',
+                const SizedBox(width: 10),
+                Expanded(
+                  child: InkWell(
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => MyPostsScreen(lang: lang),
+                      ),
+                    ),
+                    borderRadius: BorderRadius.circular(28),
+                    child: ValueListenableBuilder<List<CommunityPost>>(
+                      valueListenable: communityPosts,
+                      builder: (context, posts, _) {
+                        return SummaryBox(
+                          icon: Icons.forum_rounded,
+                          title: en ? 'Posts' : '게시글',
+                          value: '${posts.length}',
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            Header(title: en ? 'My activity' : '내 활동'),
+            MenuTile(
+              icon: Icons.flag_rounded,
+              title: en ? 'Completed missions' : '완료한 미션',
+              subtitle: en ? '${progress.completedCount} completed' : '${progress.completedCount}개 완료',
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => CompletedMissionsScreen(lang: lang),
                 ),
               ),
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: InkWell(
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => MyPostsScreen(lang: lang),
-                  ),
+            MenuTile(
+              icon: Icons.workspace_premium_rounded,
+              title: en ? 'Badges' : '획득한 뱃지',
+              subtitle: progress.completedCount >= 5
+                  ? (en ? '5 earned' : '5개 획득')
+                  : (en ? '4 earned' : '4개 획득'),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => BadgeCollectionScreen(lang: lang),
                 ),
-                borderRadius: BorderRadius.circular(28),
-                child: SummaryBox(
-                  icon: Icons.forum_rounded,
-                  title: en ? 'Posts' : '게시글',
-                  value: '8',
+              ),
+            ),
+            MenuTile(
+              icon: Icons.language_rounded,
+              title: en ? 'Language' : '언어 설정',
+              subtitle: en ? 'English / Korean' : '한국어 / English',
+              onTap: () => showLanguageSheet(context, lang, onLangChanged),
+            ),
+            MenuTile(
+              icon: Icons.edit_note_rounded,
+              title: en ? 'My posts' : '내가 쓴 글',
+              subtitle: en
+                  ? '${communityPosts.value.length} posts and comments'
+                  : '${communityPosts.value.length}개 게시글과 댓글 보기',
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => MyPostsScreen(lang: lang),
                 ),
               ),
             ),
           ],
-        ),
-        Header(title: en ? 'My activity' : '내 활동'),
-        MenuTile(
-          icon: Icons.flag_rounded,
-          title: en ? 'Completed missions' : '완료한 미션',
-          subtitle: en ? '12 completed' : '12개 완료',
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => CompletedMissionsScreen(lang: lang),
-            ),
-          ),
-        ),
-        MenuTile(
-          icon: Icons.workspace_premium_rounded,
-          title: en ? 'Badges' : '획득한 뱃지',
-          subtitle: en ? '4 earned' : '4개 획득',
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => BadgeCollectionScreen(lang: lang),
-            ),
-          ),
-        ),
-        MenuTile(
-          icon: Icons.language_rounded,
-          title: en ? 'Language' : '언어 설정',
-          subtitle: en ? 'English / Korean' : '한국어 / English',
-          onTap: () => showLanguageSheet(context, lang, onLangChanged),
-        ),
-        MenuTile(
-          icon: Icons.edit_note_rounded,
-          title: en ? 'My posts' : '내가 쓴 글',
-          subtitle: en ? 'Posts and comments' : '게시글과 댓글 보기',
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => MyPostsScreen(lang: lang),
-            ),
-          ),
-        ),
-      ],
+        );
+      },
     );
   }
 }
+
 
 class PageShell extends StatelessWidget {
   const PageShell({
@@ -1260,6 +1796,7 @@ class TossCard extends StatelessWidget {
       padding: padding,
       decoration: BoxDecoration(
         color: Colors.white,
+        border: Border.all(color: C.cardBorder),
         borderRadius: BorderRadius.circular(28),
         boxShadow: const [
           BoxShadow(
@@ -1298,7 +1835,7 @@ class TodayBriefCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(30),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x26000000),
+            color: Color(0x1F0F1E3A),
             blurRadius: 24,
             offset: Offset(0, 12),
           ),
@@ -1347,7 +1884,7 @@ class TodayBriefCard extends StatelessWidget {
           ),
           const SizedBox(height: 18),
           Text(
-            en ? 'Start with a transport mission today' : '오늘은 교통 미션부터 시작해보세요',
+            en ? 'Start with the task foreigners use most often' : '외국인이 가장 자주 쓰는 생활 미션부터 시작해보세요',
             style: const TextStyle(
               color: Colors.white,
               fontSize: 23,
@@ -1359,8 +1896,8 @@ class TodayBriefCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             en
-                ? 'It is practical, quick to verify, and helps you get used to daily movement in Korea.'
-                : '실제로 자주 쓰는 기능이고, 인증도 간단해서 첫 정착 미션으로 적합합니다.',
+                ? 'Transit cards, delivery addresses, clinic phrases, and emergency contacts are the basics of daily life in Korea.'
+                : '교통카드, 배달 주소, 병원 표현, 긴급 연락처처럼 한국 생활에 바로 필요한 것부터 익힙니다.',
             style: TextStyle(
               color: Colors.white.withOpacity(0.68),
               fontSize: 14,
@@ -1516,11 +2053,11 @@ class _TodayChecklistScreenState extends State<TodayChecklistScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(22),
                 decoration: BoxDecoration(
-                  color: percent == 100 ? C.green : C.black,
+                  color: percent == 100 ? C.blue : C.black,
                   borderRadius: BorderRadius.circular(30),
                   boxShadow: const [
                     BoxShadow(
-                      color: Color(0x26000000),
+                      color: Color(0x1F0F1E3A),
                       blurRadius: 24,
                       offset: Offset(0, 12),
                     ),
@@ -1591,8 +2128,8 @@ class _TodayChecklistScreenState extends State<TodayChecklistScreen> {
                         children: [
                           IconBox(
                             icon: items[i][0] as IconData,
-                            color: checked[i] ? C.green : C.blue,
-                            bg: checked[i] ? C.greenSoft : C.blueSoft,
+                            color: checked[i] ? C.blue : C.blue,
+                            bg: checked[i] ? C.blueSoft : C.blueSoft,
                           ),
                           const SizedBox(width: 14),
                           Expanded(
@@ -1626,7 +2163,7 @@ class _TodayChecklistScreenState extends State<TodayChecklistScreen> {
                                   ? Icons.check_circle_rounded
                                   : Icons.radio_button_unchecked_rounded,
                               key: ValueKey(checked[i]),
-                              color: checked[i] ? C.green : C.gray,
+                              color: checked[i] ? C.blue : C.gray,
                             ),
                           ),
                         ],
@@ -1641,7 +2178,7 @@ class _TodayChecklistScreenState extends State<TodayChecklistScreen> {
                     ? (en ? 'Routine completed' : '오늘 루틴 완료')
                     : (en ? 'Start recommended mission' : '추천 미션 시작하기'),
                 icon: percent == 100 ? Icons.check_rounded : Icons.flag_rounded,
-                color: percent == 100 ? C.green : C.blue,
+                color: percent == 100 ? C.blue : C.blue,
                 onTap: () {
                   if (percent == 100) {
                     toast(context, en ? 'Great job today.' : '오늘도 잘 해냈습니다.');
@@ -1847,10 +2384,10 @@ class SurvivalPhraseCard extends StatelessWidget {
               width: 54,
               height: 54,
               decoration: BoxDecoration(
-                color: C.orangeSoft,
+                color: C.blueSoft,
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: const Icon(Icons.record_voice_over_rounded, color: C.orange, size: 28),
+              child: const Icon(Icons.record_voice_over_rounded, color: C.blue, size: 28),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -1868,7 +2405,9 @@ class SurvivalPhraseCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 5),
                   Text(
-                    en ? 'Taxi, hospital, delivery, and emergency Korean' : '택시, 병원, 배달, 긴급 상황 한국어',
+                    en
+                        ? 'Show-ready Korean for taxi, delivery, clinics, banks, and emergencies'
+                        : '말이 막힐 때 바로 보여줄 수 있는 한국어 문장',
                     style: const TextStyle(
                       color: C.gray,
                       fontSize: 13,
@@ -1908,29 +2447,39 @@ class _SurvivalPhraseScreenState extends State<SurvivalPhraseScreen> {
   @override
   Widget build(BuildContext context) {
     final categories = en
-        ? ['Transport', 'Food', 'Hospital', 'Emergency']
-        : ['교통', '음식', '병원', '긴급'];
+        ? ['Taxi', 'Delivery', 'Clinic', 'Bank', 'Emergency']
+        : ['택시', '배달', '병원', '은행', '긴급'];
 
     final phrases = [
       [
-        [en ? 'Please go to this address.' : '이 주소로 가주세요.', en ? 'Show this when taking a taxi.' : '택시를 탈 때 보여주면 좋아요.'],
-        [en ? 'Please stop here.' : '여기서 세워주세요.', en ? 'Use this when you arrive nearby.' : '목적지 근처에 도착했을 때 사용해요.'],
-        [en ? 'How much is the fare?' : '요금이 얼마인가요?', en ? 'Useful before paying.' : '결제 전에 확인할 때 사용해요.'],
+        [en ? 'Please go to this address.' : '이 주소로 가주세요.', en ? 'Show this to a taxi driver when the destination is hard to pronounce.' : '주소 발음이 어렵거나 길 때 기사님께 화면을 보여주세요.'],
+        [en ? 'Please stop near the entrance.' : '입구 근처에서 세워주세요.', en ? 'Use this when you want to get off close to a building entrance.' : '정확한 건물 앞이 아니라 입구 근처에서 내리고 싶을 때 사용해요.'],
+        [en ? 'Can I pay by card?' : '카드 결제 되나요?', en ? 'Useful before getting out of the taxi.' : '카드 결제가 되는지 미리 확인하고 싶을 때 사용해요.'],
+        [en ? 'Please open the trunk.' : '트렁크 열어주세요.', en ? 'Useful when you have luggage.' : '캐리어나 큰 짐이 있을 때 기사님께 보여주세요.'],
       ],
       [
-        [en ? 'Please leave it at the door.' : '문 앞에 놓아주세요.', en ? 'Useful for delivery requests.' : '배달 요청사항에 자주 사용돼요.'],
-        [en ? 'Please remove spicy sauce.' : '매운 소스는 빼주세요.', en ? 'Good for kiosk or delivery orders.' : '키오스크나 배달 주문에서 유용해요.'],
-        [en ? 'Can I pay by card?' : '카드 결제 되나요?', en ? 'Use this before ordering or buying.' : '주문이나 구매 전에 확인할 수 있어요.'],
+        [en ? 'Please leave it at the door.' : '문 앞에 놓아주세요.', en ? 'Use this as a delivery request note.' : '배달앱 요청사항에 그대로 넣기 좋은 문장입니다.'],
+        [en ? 'Please call me when you arrive.' : '도착하면 전화해주세요.', en ? 'Useful when the entrance is hard to find.' : '공동현관, 원룸, 기숙사처럼 위치 설명이 필요할 때 좋아요.'],
+        [en ? 'Please do not make it spicy.' : '맵지 않게 해주세요.', en ? 'Use this for restaurants, kiosks, and delivery apps.' : '매운 음식을 피하고 싶을 때 식당이나 배달 요청사항에 사용해요.'],
+        [en ? 'Please include disposable utensils.' : '일회용 수저 넣어주세요.', en ? 'Useful for delivery orders.' : '수저가 필요한 경우 배달 요청사항에 그대로 넣으세요.'],
       ],
       [
-        [en ? 'I have a fever.' : '열이 있어요.', en ? 'Use this at a clinic or pharmacy.' : '병원이나 약국에서 사용할 수 있어요.'],
-        [en ? 'My stomach hurts.' : '배가 아파요.', en ? 'Simple symptom explanation.' : '간단한 증상 설명 표현이에요.'],
-        [en ? 'How should I take this medicine?' : '이 약은 어떻게 먹어야 하나요?', en ? 'Important when receiving medicine.' : '약을 받을 때 꼭 확인해야 해요.'],
+        [en ? 'I have a fever and a sore throat.' : '열이 나고 목이 아파요.', en ? 'A clear symptom sentence for clinic reception.' : '접수할 때 증상을 짧게 설명해야 할 때 보여주세요.'],
+        [en ? 'I need medicine for stomach pain.' : '배 아픈 약이 필요해요.', en ? 'Useful at a pharmacy.' : '처방전 없이 약국에서 증상을 설명할 때 사용할 수 있어요.'],
+        [en ? 'How should I take this medicine?' : '이 약은 어떻게 먹어야 하나요?', en ? 'Ask this when receiving medicine.' : '하루 몇 번, 식전/식후 복용인지 확인할 때 꼭 물어보세요.'],
+        [en ? 'Do you accept national health insurance?' : '건강보험 적용되나요?', en ? 'Useful when checking payment at clinics.' : '접수하거나 결제하기 전에 보험 적용 여부를 확인할 때 사용해요.'],
       ],
       [
-        [en ? 'Please help me.' : '도와주세요.', en ? 'Use this first in urgent situations.' : '긴급 상황에서 가장 먼저 사용할 표현이에요.'],
-        [en ? 'Please call 119.' : '119에 전화해주세요.', en ? 'For fire, rescue, or medical emergencies.' : '화재, 구조, 응급 상황에서 사용해요.'],
-        [en ? 'Please call the police.' : '경찰을 불러주세요.', en ? 'Use this when you need police help.' : '경찰 도움이 필요할 때 사용해요.'],
+        [en ? 'I would like to open a bank account.' : '통장을 만들고 싶어요.', en ? 'Use this at the bank information desk.' : '은행 안내 데스크나 번호표를 뽑기 전에 보여주기 좋아요.'],
+        [en ? 'What documents do I need?' : '필요한 서류가 무엇인가요?', en ? 'Useful before waiting in line.' : '오래 기다리기 전에 서류가 맞는지 확인할 때 사용해요.'],
+        [en ? 'I need a debit card.' : '체크카드가 필요해요.', en ? 'Use this when opening an account.' : '통장을 만들 때 체크카드도 같이 신청하고 싶을 때 사용해요.'],
+        [en ? 'Can I use mobile banking?' : '모바일뱅킹 사용할 수 있나요?', en ? 'Useful for app setup and identity verification.' : '은행 앱 로그인, 이체, 본인인증이 가능한지 확인할 때 사용해요.'],
+      ],
+      [
+        [en ? 'Please help me.' : '도와주세요.', en ? 'Use this first in urgent situations.' : '상황 설명이 어렵더라도 가장 먼저 보여줄 수 있는 문장입니다.'],
+        [en ? 'Please call 119.' : '119에 전화해주세요.', en ? 'For medical emergency, fire, or rescue.' : '아프거나 다쳤거나 화재·구조 도움이 필요할 때 사용해요.'],
+        [en ? 'Please call the police.' : '경찰을 불러주세요.', en ? 'Use this when you need police help.' : '위험하거나 신고가 필요한 상황에서 주변 사람에게 보여주세요.'],
+        [en ? 'I do not speak Korean well.' : '한국어를 잘 못해요.', en ? 'Useful when asking someone to speak slowly or help translate.' : '상대방에게 천천히 말해달라고 하거나 번역 도움을 받을 때 사용해요.'],
       ],
     ];
 
@@ -1982,7 +2531,7 @@ class _SurvivalPhraseScreenState extends State<SurvivalPhraseScreen> {
                   borderRadius: BorderRadius.circular(30),
                   boxShadow: const [
                     BoxShadow(
-                      color: Color(0x26000000),
+                      color: Color(0x1F0F1E3A),
                       blurRadius: 24,
                       offset: Offset(0, 12),
                     ),
@@ -2000,7 +2549,7 @@ class _SurvivalPhraseScreenState extends State<SurvivalPhraseScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      en ? 'Tap a phrase to save it for quick reuse.' : '표현을 누르면 즐겨찾기로 저장됩니다.',
+                      en ? 'Tap a phrase to save it, or copy it to show someone.' : '저장하거나 복사해서 기사님, 직원, 약사에게 바로 보여주세요.',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 24,
@@ -2012,8 +2561,8 @@ class _SurvivalPhraseScreenState extends State<SurvivalPhraseScreen> {
                     const SizedBox(height: 10),
                     Text(
                       en
-                          ? 'Saved phrases stay highlighted, just like a future favorites feature.'
-                          : '저장한 표현은 강조 표시되어 나중에 즐겨찾기 기능으로 확장할 수 있습니다.',
+                          ? 'These phrases are written for real situations: taxis, delivery, clinics, banks, and emergencies.'
+                          : '발음이 어렵거나 급할 때 화면을 보여주는 방식으로 사용할 수 있어요.',
                       style: TextStyle(
                         color: Colors.white.withOpacity(.72),
                         height: 1.45,
@@ -2060,9 +2609,9 @@ class _SurvivalPhraseScreenState extends State<SurvivalPhraseScreen> {
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 180),
                         decoration: BoxDecoration(
-                          color: saved ? C.orangeSoft : Colors.white,
+                          color: saved ? C.blueSoft : Colors.white,
                           borderRadius: BorderRadius.circular(28),
-                          border: Border.all(color: saved ? C.orangeSoft : Colors.white),
+                          border: Border.all(color: saved ? C.blueSoft : Colors.white),
                           boxShadow: const [
                             BoxShadow(
                               color: Color(0x0D000000),
@@ -2076,8 +2625,8 @@ class _SurvivalPhraseScreenState extends State<SurvivalPhraseScreen> {
                           children: [
                             IconBox(
                               icon: saved ? Icons.bookmark_rounded : Icons.translate_rounded,
-                              color: saved ? C.orange : C.orange,
-                              bg: saved ? Colors.white : C.orangeSoft,
+                              color: saved ? C.blue : C.blue,
+                              bg: saved ? Colors.white : C.blueSoft,
                             ),
                             const SizedBox(width: 14),
                             Expanded(
@@ -2107,7 +2656,7 @@ class _SurvivalPhraseScreenState extends State<SurvivalPhraseScreen> {
                             ),
                             Icon(
                               saved ? Icons.bookmark_rounded : Icons.bookmark_add_outlined,
-                              color: saved ? C.orange : C.gray,
+                              color: saved ? C.blue : C.gray,
                             ),
                           ],
                         ),
@@ -2118,9 +2667,9 @@ class _SurvivalPhraseScreenState extends State<SurvivalPhraseScreen> {
               ),
               const SizedBox(height: 12),
               PrimaryButton(
-                label: en ? 'Practice this category' : '이 카테고리 연습하기',
+                label: en ? 'Practice with flashcards' : '플래시카드로 연습하기',
                 icon: Icons.school_rounded,
-                color: C.orange,
+                color: C.blue,
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -2224,7 +2773,7 @@ class _PhrasePracticeScreenState extends State<PhrasePracticeScreen> {
                   borderRadius: BorderRadius.circular(30),
                   boxShadow: const [
                     BoxShadow(
-                      color: Color(0x26000000),
+                      color: Color(0x1F0F1E3A),
                       blurRadius: 24,
                       offset: Offset(0, 12),
                     ),
@@ -2264,7 +2813,7 @@ class _PhrasePracticeScreenState extends State<PhrasePracticeScreen> {
                     ),
                     const SizedBox(height: 18),
                     Text(
-                      en ? 'Read it, reveal the meaning, then move to the next phrase.' : '문장을 읽고, 뜻을 확인한 뒤 다음 표현으로 넘어가세요.',
+                      en ? 'Practice phrases you can copy, show, or say in real life.' : '복사해서 보여주거나 실제로 말할 수 있는 표현을 연습하세요.',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 23,
@@ -2310,13 +2859,13 @@ class _PhrasePracticeScreenState extends State<PhrasePracticeScreen> {
                               width: double.infinity,
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
-                                color: C.orangeSoft,
+                                color: C.blueSoft,
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: Text(
                                 phrase[1],
                                 style: const TextStyle(
-                                  color: C.orange,
+                                  color: C.blue,
                                   height: 1.4,
                                   fontWeight: FontWeight.w800,
                                 ),
@@ -2347,7 +2896,7 @@ class _PhrasePracticeScreenState extends State<PhrasePracticeScreen> {
               PrimaryButton(
                 label: revealed ? (en ? 'I know this. Next' : '알았어요. 다음') : (en ? 'Reveal meaning' : '뜻 보기'),
                 icon: revealed ? Icons.arrow_forward_rounded : Icons.visibility_rounded,
-                color: revealed ? C.green : C.orange,
+                color: revealed ? C.blue : C.blue,
                 onTap: () {
                   if (revealed) {
                     nextPhrase();
@@ -2401,10 +2950,10 @@ class SettlementRoadmapCard extends StatelessWidget {
               width: 54,
               height: 54,
               decoration: BoxDecoration(
-                color: C.greenSoft,
+                color: C.blueSoft,
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: const Icon(Icons.route_rounded, color: C.green, size: 28),
+              child: const Icon(Icons.route_rounded, color: C.blue, size: 28),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -2545,7 +3094,7 @@ class _SettlementRoadmapScreenState extends State<SettlementRoadmapScreen> {
                   borderRadius: BorderRadius.circular(30),
                   boxShadow: const [
                     BoxShadow(
-                      color: Color(0x26000000),
+                      color: Color(0x1F0F1E3A),
                       blurRadius: 24,
                       offset: Offset(0, 12),
                     ),
@@ -2609,8 +3158,8 @@ class _SettlementRoadmapScreenState extends State<SettlementRoadmapScreen> {
                         children: [
                           IconBox(
                             icon: roadmap[i][0] as IconData,
-                            color: done[i] ? C.green : C.blue,
-                            bg: done[i] ? C.greenSoft : C.blueSoft,
+                            color: done[i] ? C.blue : C.blue,
+                            bg: done[i] ? C.blueSoft : C.blueSoft,
                           ),
                           const SizedBox(width: 14),
                           Expanded(
@@ -2639,7 +3188,7 @@ class _SettlementRoadmapScreenState extends State<SettlementRoadmapScreen> {
                           ),
                           Icon(
                             done[i] ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
-                            color: done[i] ? C.green : C.gray,
+                            color: done[i] ? C.blue : C.gray,
                           ),
                         ],
                       ),
@@ -2651,7 +3200,7 @@ class _SettlementRoadmapScreenState extends State<SettlementRoadmapScreen> {
               PrimaryButton(
                 label: en ? 'Open missions and continue' : '미션에서 이어서 진행하기',
                 icon: Icons.flag_rounded,
-                color: C.green,
+                color: C.blue,
                 onTap: () => toast(context, en ? 'Use the mission tab to continue.' : '미션 탭에서 이어서 진행하세요.'),
               ),
             ],
@@ -2986,6 +3535,40 @@ void openMission(
 }
 
 
+
+
+class SmallChip extends StatelessWidget {
+  const SmallChip({
+    super.key,
+    required this.text,
+    required this.color,
+    required this.bg,
+  });
+
+  final String text;
+  final Color color;
+  final Color bg;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(99),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+}
+
 class MissionCard extends StatelessWidget {
   const MissionCard({
     super.key,
@@ -2998,90 +3581,156 @@ class MissionCard extends StatelessWidget {
   final AppLang lang;
   final VoidCallback onTap;
 
-  bool get guide => mission.type == MissionType.guide;
-  Color get accent => guide ? C.orange : C.blue;
-  Color get soft => guide ? C.orangeSoft : C.blueSoft;
   bool get en => lang == AppLang.en;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(28),
-        child: TossCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  IconBox(icon: mission.icon, color: accent, bg: soft),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '${mission.category(lang)} · ${guide ? (en ? 'Guide' : '설명 가이드') : (en ? 'Verification' : '검증 미션')}',
-                          style: TextStyle(
-                            color: accent,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        const SizedBox(height: 5),
-                        Text(
-                          mission.title(lang),
-                          style: const TextStyle(
-                            color: C.black,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: -0.4,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          mission.desc(lang),
-                          style: const TextStyle(
+    final completed = isMissionCompleted(mission);
+    final hasProgress = mission.progress > 0;
+    final statusText = completed
+        ? (en ? 'Completed' : '완료됨')
+        : mission.status(lang);
+    final actionText = completed
+        ? (en ? 'View history' : '기록 보기')
+        : hasProgress
+            ? (en ? 'Continue' : '계속하기')
+            : mission.type == MissionType.verify
+                ? (en ? 'Start verification' : '인증 시작')
+                : (en ? 'Read guide' : '가이드 보기');
+
+    final accent = completed
+        ? C.blue
+        : mission.type == MissionType.verify
+            ? C.blue
+            : C.blue;
+
+    final soft = completed
+        ? C.blueSoft
+        : mission.type == MissionType.verify
+            ? C.blueSoft
+            : C.blueSoft;
+
+    final progressValue = completed ? 1.0 : mission.progress;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(30),
+      child: TossCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                IconBox(
+                  icon: completed ? Icons.verified_rounded : mission.icon,
+                  color: accent,
+                  bg: soft,
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          SmallChip(
+                            text: mission.category(lang),
                             color: C.gray,
-                            fontSize: 14,
-                            height: 1.42,
-                            fontWeight: FontWeight.w600,
+                            bg: C.inkSoft,
                           ),
+                          SmallChip(
+                            text: statusText,
+                            color: accent,
+                            bg: soft,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        mission.title(lang),
+                        style: const TextStyle(
+                          color: C.black,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -0.4,
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  color: C.gray,
+                  size: 24,
+                ),
+              ],
+            ),
+            const SizedBox(height: 13),
+            Text(
+              mission.desc(lang),
+              style: const TextStyle(
+                color: C.gray,
+                fontSize: 13,
+                height: 1.4,
+                fontWeight: FontWeight.w700,
               ),
-              const SizedBox(height: 16),
-              RewardBox(
-                reward: '+${mission.xp} XP · ${mission.point}P',
-                status: mission.status(lang),
-                accent: accent,
-                label: en ? 'Reward' : '보상',
+            ),
+            const SizedBox(height: 14),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(99),
+              child: LinearProgressIndicator(
+                value: progressValue,
+                minHeight: 8,
+                backgroundColor: C.inkSoft,
+                valueColor: AlwaysStoppedAnimation<Color>(accent),
               ),
-              if (mission.progress > 0) ...[
-                const SizedBox(height: 14),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(999),
-                  child: LinearProgressIndicator(
-                    value: mission.progress,
-                    minHeight: 8,
-                    color: accent,
-                    backgroundColor: soft,
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Icon(
+                  completed ? Icons.check_circle_rounded : Icons.flag_rounded,
+                  color: accent,
+                  size: 18,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  completed
+                      ? (en ? 'Reflected in your settlement history' : '정착 기록에 반영됨')
+                      : '+${mission.xp} XP · +${mission.point}P',
+                  style: TextStyle(
+                    color: completed ? C.blue : C.gray,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: completed ? C.blueSoft : C.inkSoft,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Text(
+                    actionText,
+                    style: TextStyle(
+                      color: completed ? C.blue : C.black,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
                 ),
               ],
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
+
 
 class RewardBox extends StatelessWidget {
   const RewardBox({
@@ -3149,8 +3798,8 @@ class DoneTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListRow(
       icon: Icons.check_rounded,
-      iconColor: C.green,
-      iconBg: C.greenSoft,
+      iconColor: C.blue,
+      iconBg: C.blueSoft,
       title: title,
       subtitle: lang == AppLang.en ? 'Completed · Reward received' : '완료됨 · 보상 지급 완료',
       onTap: () => Navigator.push(
@@ -3162,6 +3811,7 @@ class DoneTile extends StatelessWidget {
     );
   }
 }
+
 
 class CompletedMissionsScreen extends StatelessWidget {
   const CompletedMissionsScreen({
@@ -3175,170 +3825,97 @@ class CompletedMissionsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final completed = [
-      [
-        Icons.train_rounded,
-        en ? 'Check subway routes' : '지하철 노선 확인하기',
-        '+20 XP · 200P',
-        en ? 'Transport basics completed' : '교통 기본 미션 완료',
-      ],
-      [
-        Icons.recycling_rounded,
-        en ? 'Learn recycling rules' : '분리수거 방법 익히기',
-        '+20 XP · 200P',
-        en ? 'Daily life guide completed' : '생활 가이드 완료',
-      ],
-      [
-        Icons.store_rounded,
-        en ? 'Buy something at a convenience store' : '편의점에서 상품 구매하기',
-        '+30 XP · 300P',
-        en ? 'Practical purchase mission' : '실생활 구매 미션 완료',
-      ],
-      [
-        Icons.restaurant_rounded,
-        en ? 'Order with a kiosk' : '키오스크로 주문하기',
-        '+40 XP · 400P',
-        en ? 'Food mission verified' : '음식 미션 인증 완료',
-      ],
-    ];
+    return ValueListenableBuilder<UserProgressState>(
+      valueListenable: userProgress,
+      builder: (context, progress, _) {
+        final completed = progress.completedMissionTitles.toList();
 
-    return Scaffold(
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(22, 12, 22, 30),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              IconButton(
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.arrow_back_ios_new_rounded),
-              ),
-              const SizedBox(height: 18),
-              Text(
-                en ? 'Completed missions' : '완료한 미션',
-                style: const TextStyle(
-                  color: C.black,
-                  fontSize: 31,
-                  height: 1.1,
-                  letterSpacing: -1.2,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                en
-                    ? 'Review completed missions and rewards earned.'
-                    : '완료한 미션과 획득한 보상을 한눈에 확인해요.',
-                style: const TextStyle(
-                  color: C.gray,
-                  fontSize: 15,
-                  height: 1.4,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 24),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(22),
-                decoration: BoxDecoration(
-                  color: C.black,
-                  borderRadius: BorderRadius.circular(30),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x26000000),
-                      blurRadius: 24,
-                      offset: Offset(0, 12),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      en ? 'Mission archive' : '미션 아카이브',
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(.72),
-                        fontWeight: FontWeight.w800,
+        return Scaffold(
+          backgroundColor: C.bg,
+          body: SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(22, 18, 22, 30),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      InkWell(
+                        onTap: () => Navigator.pop(context),
+                        borderRadius: BorderRadius.circular(18),
+                        child: Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                          child: const Icon(
+                            Icons.arrow_back_ios_new_rounded,
+                            color: C.black,
+                            size: 18,
+                          ),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      '12',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 42,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -1.4,
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Text(
+                          en ? 'Completed missions' : '완료한 미션',
+                          style: const TextStyle(
+                            color: C.black,
+                            fontSize: 28,
+                            letterSpacing: -1,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      en ? 'missions completed · 1,100P earned' : '개 미션 완료 · 1,100P 획득',
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(.72),
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Header(title: en ? 'Recent completions' : '최근 완료 내역'),
-              ...completed.map(
-                (item) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: TossCard(
-                    padding: const EdgeInsets.all(16),
+                    ],
+                  ),
+                  const SizedBox(height: 22),
+                  TossCard(
                     child: Row(
                       children: [
                         IconBox(
-                          icon: item[0] as IconData,
-                          color: C.green,
-                          bg: C.greenSoft,
+                          icon: Icons.verified_rounded,
+                          color: C.blue,
+                          bg: C.blueSoft,
                         ),
                         const SizedBox(width: 14),
                         Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                item[1] as String,
-                                style: const TextStyle(
-                                  color: C.black,
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                              const SizedBox(height: 5),
-                              Text(
-                                item[3] as String,
-                                style: const TextStyle(
-                                  color: C.gray,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Text(
-                          item[2] as String,
-                          style: const TextStyle(
-                            color: C.green,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w900,
+                          child: Text(
+                            en
+                                ? '${progress.completedCount} real-life tasks completed'
+                                : '실생활 미션 ${progress.completedCount}개 완료',
+                            style: const TextStyle(
+                              color: C.black,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w900,
+                            ),
                           ),
                         ),
                       ],
                     ),
                   ),
-                ),
+                  Header(
+                    title: en ? 'History' : '완료 기록',
+                    action: '${progress.completedCount}',
+                  ),
+                  ...completed.map(
+                    (title) => DoneTile(
+                      title: title,
+                      lang: lang,
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
+
 
 class PostTile extends StatelessWidget {
   const PostTile({
@@ -3717,7 +4294,7 @@ class MissionDetailScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(30),
                   boxShadow: const [
                     BoxShadow(
-                      color: Color(0x26000000),
+                      color: Color(0x1F0F1E3A),
                       blurRadius: 24,
                       offset: Offset(0, 12),
                     ),
@@ -3867,7 +4444,7 @@ class MissionDetailScreen extends StatelessWidget {
                     ? (en ? 'Start verification' : '인증 시작하기')
                     : (en ? 'Mark guide as read' : '가이드 읽음 처리'),
                 icon: isVerify ? Icons.camera_alt_rounded : Icons.check_rounded,
-                color: isVerify ? C.blue : C.green,
+                color: isVerify ? C.blue : C.blue,
                 onTap: () {
                   if (isVerify) {
                     Navigator.push(
@@ -3923,32 +4500,32 @@ class MissionPracticalPhraseCard extends StatelessWidget {
 
     if (title.contains('택시') || lower.contains('taxi')) {
       icon = Icons.local_taxi_rounded;
-      color = C.orange;
-      bg = C.orangeSoft;
+      color = C.blue;
+      bg = C.blueSoft;
       phrase = en ? 'Please go to this address.' : '이 주소로 가주세요.';
       desc = en ? 'Show this to the driver if communication is difficult.' : '말이 잘 통하지 않을 때 기사님께 보여주면 좋습니다.';
     } else if (title.contains('배달') || lower.contains('delivery')) {
       icon = Icons.delivery_dining_rounded;
-      color = C.orange;
-      bg = C.orangeSoft;
+      color = C.blue;
+      bg = C.blueSoft;
       phrase = en ? 'Please leave it at the door.' : '문 앞에 놓아주세요.';
       desc = en ? 'Useful as a delivery request note.' : '배달 요청사항에 바로 사용할 수 있습니다.';
     } else if (title.contains('병원') || lower.contains('clinic') || lower.contains('pharmacy')) {
       icon = Icons.local_hospital_rounded;
-      color = C.green;
-      bg = C.greenSoft;
+      color = C.blue;
+      bg = C.blueSoft;
       phrase = en ? 'I have a fever.' : '열이 있어요.';
       desc = en ? 'Use this at a clinic or pharmacy counter.' : '병원 접수나 약국에서 사용할 수 있습니다.';
     } else if (title.contains('긴급') || lower.contains('emergency')) {
       icon = Icons.contact_phone_rounded;
-      color = C.green;
-      bg = C.greenSoft;
+      color = C.blue;
+      bg = C.blueSoft;
       phrase = en ? 'Please call 119.' : '119에 전화해주세요.';
       desc = en ? 'Keep this ready for urgent situations.' : '긴급 상황에서 바로 보여줄 수 있도록 준비하세요.';
     } else if (title.contains('키오스크') || lower.contains('kiosk')) {
       icon = Icons.restaurant_rounded;
-      color = C.orange;
-      bg = C.orangeSoft;
+      color = C.blue;
+      bg = C.blueSoft;
       phrase = en ? 'Can I pay by card?' : '카드 결제 되나요?';
       desc = en ? 'Useful when ordering or paying in stores.' : '매장에서 주문하거나 결제할 때 유용합니다.';
     } else if (title.contains('T머니') || lower.contains('t-money')) {
@@ -4145,7 +4722,7 @@ class _VerifyScreenState extends State<VerifyScreen> {
               PrimaryButton(
                 label: buttonLabel,
                 icon: stage >= 4 ? Icons.card_giftcard_rounded : Icons.verified_rounded,
-                color: stage >= 4 ? C.green : C.black,
+                color: stage >= 4 ? C.blue : C.black,
                 onTap: busy ? () {} : nextStage,
               ),
             ],
@@ -4179,11 +4756,11 @@ class VerificationHeroCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        color: approved ? C.green : C.black,
+        color: approved ? C.blue : C.black,
         borderRadius: BorderRadius.circular(30),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x26000000),
+            color: Color(0x1F0F1E3A),
             blurRadius: 24,
             offset: Offset(0, 12),
           ),
@@ -4275,8 +4852,8 @@ class VerificationStepTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = done ? C.green : active ? C.blue : C.gray;
-    final bg = done ? C.greenSoft : active ? C.blueSoft : C.bg;
+    final color = done ? C.blue : active ? C.blue : C.gray;
+    final bg = done ? C.blueSoft : active ? C.blueSoft : C.bg;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
@@ -4293,7 +4870,7 @@ class VerificationStepTile extends StatelessWidget {
               ),
               child: Center(
                 child: done
-                    ? const Icon(Icons.check_rounded, color: C.green)
+                    ? const Icon(Icons.check_rounded, color: C.blue)
                     : Text(
                         '$number',
                         style: TextStyle(
@@ -4527,7 +5104,8 @@ class MiniActionButton extends StatelessWidget {
   }
 }
 
-class WritePostScreen extends StatelessWidget {
+
+class WritePostScreen extends StatefulWidget {
   const WritePostScreen({
     super.key,
     required this.lang,
@@ -4535,52 +5113,210 @@ class WritePostScreen extends StatelessWidget {
 
   final AppLang lang;
 
-  bool get en => lang == AppLang.en;
+  @override
+  State<WritePostScreen> createState() => _WritePostScreenState();
+}
+
+class _WritePostScreenState extends State<WritePostScreen> {
+  final titleController = TextEditingController();
+  final bodyController = TextEditingController();
+  BoardFilter selectedBoard = BoardFilter.qna;
+  int selectedCategory = 0;
+
+  bool get en => widget.lang == AppLang.en;
+
+  final koCategories = const ['교통', '배달', '행정', '병원', '은행', '분리수거'];
+  final enCategories = const ['Transport', 'Delivery', 'Admin', 'Clinic', 'Bank', 'Waste'];
+
+  @override
+  void dispose() {
+    titleController.dispose();
+    bodyController.dispose();
+    super.dispose();
+  }
+
+  void submitPost() {
+    final title = titleController.text.trim();
+    final body = bodyController.text.trim();
+
+    if (title.isEmpty || body.isEmpty) {
+      toast(
+        context,
+        en ? 'Please enter both title and content.' : '제목과 내용을 모두 입력해주세요.',
+      );
+      return;
+    }
+
+    communityPosts.value = [
+      CommunityPost(
+        board: selectedBoard,
+        titleKo: title,
+        titleEn: title,
+        metaKo: '방금 전 · 댓글 0 · 추천 0 · ${koCategories[selectedCategory]}',
+        metaEn: 'Just now · 0 replies · 0 likes · ${enCategories[selectedCategory]}',
+      ),
+      ...communityPosts.value,
+    ];
+
+    toast(
+      context,
+      en ? 'Post added to the community.' : '커뮤니티에 글이 추가되었습니다.',
+    );
+    Navigator.pop(context);
+  }
 
   @override
   Widget build(BuildContext context) {
+    final categories = en ? enCategories : koCategories;
+
     return Scaffold(
+      backgroundColor: C.bg,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(22, 12, 22, 30),
+          padding: const EdgeInsets.fromLTRB(22, 18, 22, 30),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              IconButton(
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.arrow_back_ios_new_rounded),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                en ? 'Write post' : '글쓰기',
-                style: const TextStyle(
-                  color: C.black,
-                  fontSize: 30,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -1,
-                ),
-              ),
-              const SizedBox(height: 24),
-              FilterBar(
-                labels: en ? const ['Free board', 'Q&A'] : const ['자유게시판', 'Q&A'],
-                selected: 0,
-                onTap: (_) {},
-              ),
-              const SizedBox(height: 18),
-              TossTextField(hint: en ? 'Title' : '제목을 입력하세요'),
-              const SizedBox(height: 12),
-              TossTextField(
-                hint: en ? 'Write something' : '내용을 입력하세요',
-                maxLines: 8,
+              Row(
+                children: [
+                  InkWell(
+                    onTap: () => Navigator.pop(context),
+                    borderRadius: BorderRadius.circular(18),
+                    child: Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: const Icon(
+                        Icons.arrow_back_ios_new_rounded,
+                        color: C.black,
+                        size: 18,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Text(
+                      en ? 'Write post' : '글쓰기',
+                      style: const TextStyle(
+                        color: C.black,
+                        fontSize: 28,
+                        letterSpacing: -1,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 22),
-              PrimaryButton(
-                label: en ? 'Publish' : '등록하기',
-                icon: Icons.check_rounded,
-                onTap: () => toast(
-                  context,
-                  en ? 'Post published as a prototype.' : '게시글이 등록된 것처럼 처리했습니다.',
+              TossCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      en ? 'Ask with context' : '어디서 막혔는지 알려주세요',
+                      style: const TextStyle(
+                        color: C.black,
+                        fontSize: 19,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      en
+                          ? 'Questions with location, situation, and what you tried are easier for helpers to answer.'
+                          : '앱 이름, 장소, 화면에 나온 문구를 적으면 더 정확한 답변을 받을 수 있어요.',
+                      style: const TextStyle(
+                        color: C.gray,
+                        height: 1.45,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
+              ),
+              const SizedBox(height: 16),
+              Header(title: en ? 'Board type' : '게시판 선택'),
+              FilterBar(
+                labels: en ? const ['Free board', 'Q&A'] : const ['자유게시판', 'Q&A'],
+                selected: selectedBoard.index,
+                onTap: (i) => setState(() => selectedBoard = BoardFilter.values[i]),
+              ),
+              Header(title: en ? 'Category' : '카테고리'),
+              FilterBar(
+                labels: categories,
+                selected: selectedCategory,
+                onTap: (i) => setState(() => selectedCategory = i),
+              ),
+              Header(title: en ? 'Post content' : '게시글 내용'),
+              TextField(
+                controller: titleController,
+                decoration: InputDecoration(
+                  hintText: en
+                      ? 'Example: My delivery address keeps failing'
+                      : '예: 배달앱 주소 입력이 계속 실패해요',
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(22),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: bodyController,
+                minLines: 6,
+                maxLines: 9,
+                decoration: InputDecoration(
+                  hintText: en
+                      ? 'Write the situation, location, and what you already tried.'
+                      : '어떤 화면에서 막혔는지, 어떤 문구가 나왔는지 적어주세요.',
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(22),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w700,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 16),
+              TossCard(
+                child: Row(
+                  children: [
+                    IconBox(
+                      icon: Icons.tips_and_updates_rounded,
+                      color: C.blue,
+                      bg: C.blueSoft,
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Text(
+                        en
+                            ? 'Tip: Add a screenshot or exact Korean phrase later when backend upload is ready.'
+                            : '팁: 추후 백엔드 업로드가 연결되면 스크린샷이나 한국어 문구도 함께 첨부할 수 있습니다.',
+                        style: const TextStyle(
+                          color: C.gray,
+                          height: 1.4,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 18),
+              PrimaryButton(
+                label: en ? 'Submit post' : '게시글 등록하기',
+                icon: Icons.send_rounded,
+                onTap: submitPost,
               ),
             ],
           ),
@@ -4589,6 +5325,7 @@ class WritePostScreen extends StatelessWidget {
     );
   }
 }
+
 
 class TossTextField extends StatelessWidget {
   const TossTextField({
@@ -4644,12 +5381,12 @@ void completeSheet(BuildContext context, Mission mission, AppLang lang) {
             width: 56,
             height: 56,
             decoration: BoxDecoration(
-              color: C.greenSoft,
+              color: C.blueSoft,
               borderRadius: BorderRadius.circular(22),
             ),
             child: const Icon(
               Icons.check_rounded,
-              color: C.green,
+              color: C.blue,
               size: 34,
             ),
           ),
@@ -4790,8 +5527,8 @@ class PointHistoryScreen extends StatelessWidget {
               ...items.map(
                 (item) => ListRow(
                   icon: Icons.add_rounded,
-                  iconColor: C.green,
-                  iconBg: C.greenSoft,
+                  iconColor: C.blue,
+                  iconBg: C.blueSoft,
                   title: item[0],
                   subtitle: '${item[2]} · ${item[1]}',
                   onTap: () => toast(context, item[1]),
@@ -4892,8 +5629,8 @@ class BadgeCollectionScreen extends StatelessWidget {
                       children: [
                         IconBox(
                           icon: badge[0] as IconData,
-                          color: C.orange,
-                          bg: C.orangeSoft,
+                          color: C.blue,
+                          bg: C.blueSoft,
                         ),
                         const Spacer(),
                         Text(
@@ -5081,8 +5818,8 @@ class PassportScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final areas = [
       [Icons.train_rounded, en ? 'Transport' : '교통', '70%', C.blue, C.blueSoft],
-      [Icons.restaurant_rounded, en ? 'Food' : '음식', '45%', C.green, C.greenSoft],
-      [Icons.badge_rounded, en ? 'Admin' : '행정', '30%', C.orange, C.orangeSoft],
+      [Icons.restaurant_rounded, en ? 'Food' : '음식', '45%', C.blue, C.blueSoft],
+      [Icons.badge_rounded, en ? 'Admin' : '행정', '30%', C.blue, C.blueSoft],
       [Icons.home_rounded, en ? 'Daily life' : '생활', '55%', C.blue, C.blueSoft],
     ];
 
@@ -5242,7 +5979,7 @@ class AdminInfoPanel extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.fact_check_rounded, color: C.orange),
+                  const Icon(Icons.fact_check_rounded, color: C.blue),
                   const SizedBox(width: 8),
                   Text(
                     en ? 'Before you visit' : '방문 전 체크리스트',
@@ -5266,13 +6003,13 @@ class AdminInfoPanel extends StatelessWidget {
           width: double.infinity,
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: C.orangeSoft,
+            color: C.blueSoft,
             borderRadius: BorderRadius.circular(22),
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.warning_amber_rounded, color: C.orange),
+              const Icon(Icons.warning_amber_rounded, color: C.blue),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
@@ -5313,7 +6050,7 @@ class AdminMiniCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: C.orange),
+          Icon(icon, color: C.blue),
           const SizedBox(height: 10),
           Text(
             title,
@@ -5356,10 +6093,10 @@ class AdminCheckRow extends StatelessWidget {
             width: 22,
             height: 22,
             decoration: BoxDecoration(
-              color: C.greenSoft,
+              color: C.blueSoft,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(Icons.check_rounded, color: C.green, size: 16),
+            child: const Icon(Icons.check_rounded, color: C.blue, size: 16),
           ),
           const SizedBox(width: 9),
           Expanded(
