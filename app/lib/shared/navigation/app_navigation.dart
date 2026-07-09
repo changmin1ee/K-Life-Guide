@@ -18,11 +18,11 @@ Future<void> openMission(
   );
 }
 
-void openPost(BuildContext context, String title, AppLang lang) {
+void openPost(BuildContext context, CommunityPost post, AppLang lang) {
   Navigator.push(
     context,
     MaterialPageRoute(
-      builder: (_) => PostDetailScreen(title: title, lang: lang),
+      builder: (_) => PostDetailScreen(post: post, lang: lang),
     ),
   );
 }

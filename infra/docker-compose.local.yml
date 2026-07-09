@@ -16,10 +16,8 @@ services:
   mongodb:
     image: mongo:7.0
     container_name: klife-mongodb
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USERNAME}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
-      MONGO_INITDB_DATABASE: ${MONGO_DATABASE}
+    # 로컬 개발 환경: 인증 없이 실행 (--noauth)
+    command: mongod --noauth
     ports:
       - "27017:27017"
     volumes:

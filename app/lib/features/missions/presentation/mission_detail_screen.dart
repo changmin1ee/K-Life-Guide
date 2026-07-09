@@ -21,6 +21,10 @@ class _MissionDetailScreenState extends State<MissionDetailScreen> {
   // 'AVAILABLE' | 'IN_PROGRESS' | 'COMPLETED'
   late String _status;
 
+  List<String> _koSteps = [];
+  List<String> _enSteps = [];
+  bool _stepsLoading = true;
+
   bool get en => widget.lang == AppLang.en;
   Mission get mission => widget.mission;
 
@@ -35,6 +39,27 @@ class _MissionDetailScreenState extends State<MissionDetailScreen> {
     } else {
       _status = 'AVAILABLE';
     }
+    _loadSteps();
+  }
+
+  Future<void> _loadSteps() async {
+    if (mission.id == null) {
+      setState(() => _stepsLoading = false);
+      return;
+    }
+    try {
+      final res = await ApiClient.dio.get('/api/missions/${mission.id}');
+      if (res.data['isSuccess'] == true) {
+        final rawSteps = res.data['result']['steps'] as List<dynamic>? ?? [];
+        setState(() {
+          _koSteps = rawSteps.map((s) => s['koStep'] as String).toList();
+          _enSteps = rawSteps.map((s) => s['enStep'] as String).toList();
+          _stepsLoading = false;
+        });
+        return;
+      }
+    } catch (_) {}
+    setState(() => _stepsLoading = false);
   }
 
   /// 미션 수락 (start)
@@ -109,7 +134,7 @@ class _MissionDetailScreenState extends State<MissionDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final isVerify = mission.type == MissionType.verify;
-    final steps = mission.steps(widget.lang);
+    final steps = en ? _enSteps : _koSteps;
 
     return Scaffold(
       body: SafeArea(
@@ -254,7 +279,21 @@ class _MissionDetailScreenState extends State<MissionDetailScreen> {
                 lang: widget.lang,
               ),
               Header(title: en ? 'Steps' : '진행 단계'),
-              ...List.generate(
+              if (_stepsLoading)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              else if (steps.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: Text(
+                    en ? 'No steps available.' : '단계 정보가 없습니다.',
+                    style: const TextStyle(color: C.gray, fontWeight: FontWeight.w600),
+                  ),
+                )
+              else
+                ...List.generate(
                 steps.length,
                 (i) => Padding(
                   padding: const EdgeInsets.only(bottom: 10),

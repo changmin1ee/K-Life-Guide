@@ -1,19 +1,83 @@
 part of '../../../main.dart';
 
-class PostDetailScreen extends StatelessWidget {
+class PostDetailScreen extends StatefulWidget {
   const PostDetailScreen({
     super.key,
-    required this.title,
+    required this.post,
     required this.lang,
   });
 
-  final String title;
+  final CommunityPost post;
   final AppLang lang;
 
-  bool get en => lang == AppLang.en;
+  @override
+  State<PostDetailScreen> createState() => _PostDetailScreenState();
+}
+
+class _PostDetailScreenState extends State<PostDetailScreen> {
+  bool get en => widget.lang == AppLang.en;
+
+  // 상세 데이터 (API에서 로드)
+  String? _contentKo;
+  String? _contentEn;
+  String _authorName = '';
+  bool _isLiked = false;
+  int _likeCount = 0;
+  List<Map<String, dynamic>> _replies = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDetail();
+  }
+
+  Future<void> _loadDetail() async {
+    if (widget.post.id == null) {
+      setState(() => _loading = false);
+      return;
+    }
+    try {
+      final res = await ApiClient.dio.get('/api/posts/${widget.post.id}');
+      if (res.data['isSuccess'] == true) {
+        final d = res.data['result'] as Map<String, dynamic>;
+        setState(() {
+          _contentKo = d['contentKo'] as String?;
+          _contentEn = d['contentEn'] as String?;
+          _authorName = d['authorName'] ?? '';
+          _isLiked = d['isLiked'] ?? false;
+          _likeCount = d['likeCount'] ?? 0;
+          _replies = ((d['replies'] as List?) ?? [])
+              .map((r) => r as Map<String, dynamic>)
+              .toList();
+          _loading = false;
+        });
+      }
+    } catch (_) {
+      setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _toggleLike() async {
+    if (widget.post.id == null) return;
+    try {
+      final res =
+          await ApiClient.dio.post('/api/posts/${widget.post.id}/like');
+      if (res.data['isSuccess'] == true) {
+        final d = res.data['result'] as Map<String, dynamic>;
+        setState(() {
+          _isLiked = d['isLiked'] ?? _isLiked;
+          _likeCount = d['likeCount'] ?? _likeCount;
+        });
+      }
+    } catch (_) {}
+  }
 
   @override
   Widget build(BuildContext context) {
+    final title = widget.post.title(widget.lang);
+    final content = (en ? _contentEn : _contentKo) ?? '';
+
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
@@ -26,6 +90,7 @@ class PostDetailScreen extends StatelessWidget {
                 icon: const Icon(Icons.arrow_back_ios_new_rounded),
               ),
               const SizedBox(height: 20),
+              // 제목
               Text(
                 title,
                 style: const TextStyle(
@@ -36,46 +101,65 @@ class PostDetailScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 10),
+              // 작성자
               Text(
-                en ? 'Alex Kim · Lv.3 · just now' : 'Alex Kim · Lv.3 · 방금 전',
+                _loading ? '' : _authorName,
                 style: const TextStyle(
                   color: C.gray,
                   fontWeight: FontWeight.w600,
                 ),
               ),
               const SizedBox(height: 24),
-              TossCard(
-                child: Text(
-                  en
-                      ? 'This is a sample post screen for checking the final community design. Reply, like, and report flows can be connected later.'
-                      : '처음 한국 생활을 시작하는 외국인 입장에서 헷갈릴 수 있는 내용을 질문하는 예시 화면입니다. 댓글과 추천, 신고 버튼까지 디자인 확인이 가능하도록 구성했습니다.',
-                  style: const TextStyle(
-                    color: C.black,
-                    height: 1.6,
-                    fontWeight: FontWeight.w600,
+              // 본문
+              if (_loading)
+                const Center(
+                    child: Padding(
+                  padding: EdgeInsets.all(32),
+                  child: CircularProgressIndicator(),
+                ))
+              else ...[
+                TossCard(
+                  child: Text(
+                    content.isNotEmpty
+                        ? content
+                        : (en ? '(No content)' : '(내용 없음)'),
+                    style: const TextStyle(
+                      color: C.black,
+                      height: 1.6,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              PostActionBar(lang: lang),
-              Header(title: en ? 'Replies' : '댓글'),
-              TossCard(
-                padding: const EdgeInsets.all(16),
-                child: Text(
-                  en
-                      ? 'Mina · You can also top up at convenience stores.'
-                      : 'Mina · 편의점에서도 가능해요. 직원에게 T-money charge라고 말하면 됩니다.',
+                const SizedBox(height: 12),
+                // 액션바 (좋아요 / 저장 / 신고)
+                _PostActionBar(
+                  lang: widget.lang,
+                  isLiked: _isLiked,
+                  likeCount: _likeCount,
+                  onLikeTap: _toggleLike,
                 ),
-              ),
-              const SizedBox(height: 16),
-              PrimaryButton(
-                label: en ? 'Write reply' : '댓글 작성하기',
-                icon: Icons.chat_bubble_rounded,
-                onTap: () => toast(
-                  context,
-                  en ? 'Reply input opened.' : '댓글 입력창을 엽니다.',
+                // 댓글
+                Header(title: en ? 'Replies' : '댓글'),
+                if (_replies.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: Text(
+                      en ? 'No replies yet.' : '아직 댓글이 없습니다.',
+                      style: const TextStyle(color: C.gray, fontWeight: FontWeight.w600),
+                    ),
+                  )
+                else
+                  ..._replies.map((r) => _ReplyTile(reply: r, lang: widget.lang)),
+                const SizedBox(height: 16),
+                PrimaryButton(
+                  label: en ? 'Write reply' : '댓글 작성하기',
+                  icon: Icons.chat_bubble_rounded,
+                  onTap: () => toast(
+                    context,
+                    en ? 'Reply input opened.' : '댓글 입력창을 엽니다.',
+                  ),
                 ),
-              ),
+              ],
             ],
           ),
         ),
@@ -84,23 +168,20 @@ class PostDetailScreen extends StatelessWidget {
   }
 }
 
-class PostActionBar extends StatefulWidget {
-  const PostActionBar({
-    super.key,
+class _PostActionBar extends StatelessWidget {
+  const _PostActionBar({
     required this.lang,
+    required this.isLiked,
+    required this.likeCount,
+    required this.onLikeTap,
   });
 
   final AppLang lang;
+  final bool isLiked;
+  final int likeCount;
+  final VoidCallback onLikeTap;
 
-  @override
-  State<PostActionBar> createState() => _PostActionBarState();
-}
-
-class _PostActionBarState extends State<PostActionBar> {
-  bool liked = false;
-  bool saved = false;
-
-  bool get en => widget.lang == AppLang.en;
+  bool get en => lang == AppLang.en;
 
   @override
   Widget build(BuildContext context) {
@@ -108,19 +189,12 @@ class _PostActionBarState extends State<PostActionBar> {
       children: [
         Expanded(
           child: MiniActionButton(
-            icon: liked ? Icons.thumb_up_rounded : Icons.thumb_up_outlined,
-            label: liked ? (en ? 'Liked' : '추천됨') : (en ? 'Like' : '추천'),
-            active: liked,
-            onTap: () => setState(() => liked = !liked),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: MiniActionButton(
-            icon: saved ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
-            label: saved ? (en ? 'Saved' : '저장됨') : (en ? 'Save' : '저장'),
-            active: saved,
-            onTap: () => setState(() => saved = !saved),
+            icon: isLiked ? Icons.thumb_up_rounded : Icons.thumb_up_outlined,
+            label: isLiked
+                ? (en ? 'Liked ($likeCount)' : '추천됨 ($likeCount)')
+                : (en ? 'Like' : '추천'),
+            active: isLiked,
+            onTap: onLikeTap,
           ),
         ),
         const SizedBox(width: 8),
@@ -133,6 +207,48 @@ class _PostActionBarState extends State<PostActionBar> {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _ReplyTile extends StatelessWidget {
+  const _ReplyTile({required this.reply, required this.lang});
+
+  final Map<String, dynamic> reply;
+  final AppLang lang;
+
+  @override
+  Widget build(BuildContext context) {
+    final author = reply['authorName'] as String? ?? '';
+    final content = reply['content'] as String? ?? '';
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: TossCard(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              author,
+              style: const TextStyle(
+                color: C.black,
+                fontWeight: FontWeight.w900,
+                fontSize: 13,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              content,
+              style: const TextStyle(
+                color: C.black,
+                height: 1.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

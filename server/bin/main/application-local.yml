@@ -5,7 +5,7 @@ spring:
     password: klife1234!
   data:
     mongodb:
-      uri: mongodb://admin:klife1234!@localhost:27017/klife_guide?authSource=admin
+      uri: mongodb://localhost:27017/klife_guide
       database: klife_guide
     redis:
       host: localhost

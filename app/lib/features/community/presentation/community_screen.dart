@@ -108,7 +108,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                 board: p.board == BoardFilter.qna ? 'Q&A' : 'FREE',
                 title: p.title(widget.lang),
                 meta: p.meta(widget.lang),
-                onTap: () => openPost(context, p.title(widget.lang), widget.lang),
+                onTap: () => openPost(context, p, widget.lang),
               ),
             ),
             const SizedBox(height: 18),

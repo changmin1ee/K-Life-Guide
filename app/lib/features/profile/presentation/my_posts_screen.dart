@@ -91,7 +91,7 @@ class _MyPostsScreenState extends State<MyPostsScreen> {
                     board: post.board == BoardFilter.qna ? 'Q&A' : 'FREE',
                     title: post.title(widget.lang),
                     meta: post.meta(widget.lang),
-                    onTap: () => openPost(context, post.title(widget.lang), widget.lang),
+                    onTap: () => openPost(context, post, widget.lang),
                   ),
                 ),
             ],
