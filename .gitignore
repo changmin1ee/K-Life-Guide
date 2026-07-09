@@ -1,0 +1,9 @@
+# 환경 변수 (절대 커밋 금지)
+.env
+infra/.env
+server/.env
+
+# 환경 변수 (절대 커밋 금지)
+.env
+infra/.env
+server/.env

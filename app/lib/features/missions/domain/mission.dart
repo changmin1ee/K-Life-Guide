@@ -2,6 +2,7 @@ part of '../../../main.dart';
 
 class Mission {
   const Mission({
+    this.id,
     required this.icon,
     required this.type,
     required this.koCategory,
@@ -19,6 +20,7 @@ class Mission {
     required this.enSteps,
   });
 
+  final int? id;
   final IconData icon;
   final MissionType type;
   final String koCategory;

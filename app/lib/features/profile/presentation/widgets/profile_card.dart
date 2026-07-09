@@ -14,109 +14,124 @@ class ProfileCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final card = TossCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const IconBox(
-                icon: Icons.person_rounded,
-                color: C.blue,
-                bg: C.blueSoft,
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Alex Kim',
-                      style: TextStyle(
-                        color: C.black,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -0.3,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      en ? 'Day 12 in Korea' : '한국 정착 12일차',
-                      style: const TextStyle(
-                        color: C.gray,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const LevelBadge(),
-            ],
-          ),
-          const SizedBox(height: 22),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                en ? 'To next level' : '다음 레벨까지',
-                style: const TextStyle(
-                  color: C.black,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const Text(
-                '620 / 1000 XP',
-                style: TextStyle(
-                  color: C.gray,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(999),
-            child: const LinearProgressIndicator(
-              value: .62,
-              minHeight: 11,
-              color: C.blue,
-              backgroundColor: C.blueSoft,
-            ),
-          ),
-          const SizedBox(height: 18),
-          Row(
-            children: [
-              Expanded(
-                child: MetricBox(
-                  label: en ? 'Points' : '포인트',
-                  value: '3,200P',
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: MetricBox(
-                  label: en ? 'Completed' : '완료 미션',
-                  value: '12',
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
+    return ValueListenableBuilder<UserProgressState>(
+      valueListenable: userProgress,
+      builder: (ctx, state, _) {
+        return ValueListenableBuilder<String>(
+          valueListenable: memberName,
+          builder: (ctx2, name, _) {
+            final xpInLevel = state.xp % 500;
+            final xpProgress = xpInLevel / 500.0;
 
-    if (onTap == null) return card;
+            final card = TossCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const IconBox(
+                        icon: Icons.person_rounded,
+                        color: C.blue,
+                        bg: C.blueSoft,
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              name,
+                              style: const TextStyle(
+                                color: C.black,
+                                fontSize: 20,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: -0.3,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              en ? 'Living in Korea' : '한국 생활 중',
+                              style: const TextStyle(
+                                color: C.gray,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      LevelBadge(level: state.level),
+                    ],
+                  ),
+                  const SizedBox(height: 22),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        en ? 'To next level' : '다음 레벨까지',
+                        style: const TextStyle(
+                          color: C.black,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      Text(
+                        '$xpInLevel / 500 XP',
+                        style: const TextStyle(
+                          color: C.gray,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(999),
+                    child: LinearProgressIndicator(
+                      value: xpProgress,
+                      minHeight: 11,
+                      color: C.blue,
+                      backgroundColor: C.blueSoft,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: MetricBox(
+                          label: en ? 'Points' : '포인트',
+                          value: '${state.points}P',
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: MetricBox(
+                          label: en ? 'Completed' : '완료 미션',
+                          value: '${state.completedMissionTitles.length}',
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
 
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(28),
-      child: card,
+            if (onTap == null) return card;
+
+            return InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(28),
+              child: card,
+            );
+          },
+        );
+      },
     );
   }
 }
 
 class LevelBadge extends StatelessWidget {
-  const LevelBadge({super.key});
+  const LevelBadge({super.key, required this.level});
+
+  final int level;
 
   @override
   Widget build(BuildContext context) {
@@ -126,9 +141,9 @@ class LevelBadge extends StatelessWidget {
         color: C.black,
         borderRadius: BorderRadius.circular(999),
       ),
-      child: const Text(
-        'Lv.3',
-        style: TextStyle(
+      child: Text(
+        'Lv.$level',
+        style: const TextStyle(
           color: Colors.white,
           fontWeight: FontWeight.w900,
         ),

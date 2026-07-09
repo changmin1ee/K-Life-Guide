@@ -10,7 +10,7 @@ class LoginPage extends StatelessWidget {
 
   final AppLang lang;
   final ValueChanged<AppLang> onLangChanged;
-  final VoidCallback onLogin;
+  final Future<void> Function() onLogin;
 
   bool get en => lang == AppLang.en;
 
@@ -90,7 +90,7 @@ class LoginPage extends StatelessWidget {
               PrimaryButton(
                 label: en ? 'Continue with Google' : 'Google 계정으로 계속하기',
                 icon: Icons.g_mobiledata_rounded,
-                onTap: onLogin,
+                onTap: () { onLogin(); },
               ),
               const SizedBox(height: 14),
               Center(

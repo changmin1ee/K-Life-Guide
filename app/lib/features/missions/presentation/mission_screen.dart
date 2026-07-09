@@ -16,6 +16,30 @@ class MissionScreen extends StatefulWidget {
 
 class _MissionScreenState extends State<MissionScreen> {
   MissionFilter filter = MissionFilter.all;
+  bool _loading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMissions();
+  }
+
+  Future<void> _loadMissions() async {
+    setState(() => _loading = true);
+    try {
+      final res = await ApiClient.dio.get('/api/missions');
+      if (res.data['isSuccess'] == true) {
+        final list = (res.data['result'] as List)
+            .map((d) => missionFromApi(d as Map<String, dynamic>))
+            .toList();
+        missionListNotifier.value = list;
+      }
+    } catch (_) {
+      // 네트워크 오류 시 기존 빈 리스트 유지
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,6 +50,19 @@ class _MissionScreenState extends State<MissionScreen> {
       if (filter == MissionFilter.verify) return m.type == MissionType.verify;
       return m.type == MissionType.guide;
     }).toList();
+
+    if (_loading && missions.isEmpty) {
+      return PageShell(
+        lang: widget.lang,
+        onLangChanged: widget.onLangChanged,
+        title: en ? 'Missions' : '미션',
+        subtitle: en ? 'Verification missions and admin guides.' : '검증 미션과 행정 가이드를 한 곳에서 관리해요.',
+        children: const [
+          SizedBox(height: 80),
+          Center(child: CircularProgressIndicator()),
+        ],
+      );
+    }
 
     return PageShell(
       lang: widget.lang,
@@ -48,12 +85,10 @@ class _MissionScreenState extends State<MissionScreen> {
           (m) => MissionCard(
             mission: m,
             lang: widget.lang,
-            onTap: () => openMission(
-              context,
-              m,
-              widget.lang,
-              widget.onLangChanged,
-            ),
+            onTap: () async {
+              await openMission(context, m, widget.lang, widget.onLangChanged);
+              if (mounted) _loadMissions();
+            },
           ),
         ),
       ],

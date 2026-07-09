@@ -1,7 +1,12 @@
 // ignore_for_file: deprecated_member_use
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'core/network/api_client.dart';
+import 'core/network/api_endpoints.dart';
+import 'core/network/token_storage.dart';
+import 'core/services/auth_service.dart';
 
 part 'app/k_life_guide_app.dart';
 part 'app/tabs.dart';
@@ -64,4 +69,7 @@ part 'shared/widgets/primary_button.dart';
 part 'shared/widgets/lang_button.dart';
 part 'shared/navigation/app_navigation.dart';
 
-void main() => runApp(const KLifeGuideApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(const KLifeGuideApp());
+}

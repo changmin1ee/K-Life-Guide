@@ -1,6 +1,6 @@
 part of '../../../main.dart';
 
-class MissionDetailScreen extends StatelessWidget {
+class MissionDetailScreen extends StatefulWidget {
   const MissionDetailScreen({
     super.key,
     required this.mission,
@@ -12,12 +12,104 @@ class MissionDetailScreen extends StatelessWidget {
   final AppLang lang;
   final ValueChanged<AppLang> onLangChanged;
 
-  bool get en => lang == AppLang.en;
+  @override
+  State<MissionDetailScreen> createState() => _MissionDetailScreenState();
+}
+
+class _MissionDetailScreenState extends State<MissionDetailScreen> {
+  bool _busy = false;
+  // 'AVAILABLE' | 'IN_PROGRESS' | 'COMPLETED'
+  late String _status;
+
+  bool get en => widget.lang == AppLang.en;
+  Mission get mission => widget.mission;
+
+  @override
+  void initState() {
+    super.initState();
+    // 완료 여부: userProgress OR API koStatus 기준 (서버 재시작 후 userProgress 초기화 대응)
+    if (isMissionCompleted(mission) || mission.koStatus == '완료') {
+      _status = 'COMPLETED';
+    } else if (mission.koStatus == '진행 중') {
+      _status = 'IN_PROGRESS';
+    } else {
+      _status = 'AVAILABLE';
+    }
+  }
+
+  /// 미션 수락 (start)
+  Future<void> _acceptMission() async {
+    if (_busy || mission.id == null) return;
+    setState(() => _busy = true);
+    try {
+      final res = await ApiClient.dio.post('/api/missions/${mission.id}/start');
+      if (res.data['isSuccess'] == true) {
+        setState(() => _status = 'IN_PROGRESS');
+      }
+      // isSuccess false인 경우: 409(이미완료) 등 → 서버 응답은 정상이지만 실패
+      // Dio가 4xx를 예외로 던지므로 여기 도달하면 2xx 성공
+    } catch (e) {
+      // 실패 시 상태 변경하지 않음 — 낙관 처리 제거
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(en ? 'Failed to accept mission.' : '미션 수락에 실패했습니다.')),
+        );
+      }
+    }
+    setState(() => _busy = false);
+  }
+
+  /// GUIDE 미션 완료
+  Future<void> _completeGuide() async {
+    if (_busy || mission.id == null) return;
+    setState(() => _busy = true);
+    try {
+      final res = await ApiClient.dio.post(
+        '/api/missions/${mission.id}/complete',
+        data: {'proofImageUrl': null},
+      );
+      if (res.data['isSuccess'] == true) {
+        final result = res.data['result'] as Map<String, dynamic>;
+        userProgress.value = UserProgressState(
+          points: result['newTotalPoints'] ?? userProgress.value.points,
+          xp: result['newTotalXp'] ?? userProgress.value.xp,
+          completedMissionTitles: {
+            ...userProgress.value.completedMissionTitles,
+            mission.koTitle,
+          },
+        );
+        missionListNotifier.value = [];
+        setState(() => _status = 'COMPLETED');
+      }
+    } on DioException catch (e) {
+      final code = e.response?.data?['code'] as String?;
+      if (code == 'MISSION409') {
+        // 이미 완료된 미션: 완료 상태로 전환
+        missionListNotifier.value = [];
+        setState(() => _status = 'COMPLETED');
+      } else {
+        // 그 외 오류 (404 등): 메시지 표시
+        final msg = e.response?.data?['message'] as String?;
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(msg ?? (en ? 'Failed to complete mission.' : '미션 완료에 실패했습니다.')),
+            ),
+          );
+        }
+      }
+    }
+    setState(() => _busy = false);
+    if (!mounted) return;
+    if (_status == 'COMPLETED') {
+      completeSheet(context, mission, widget.lang);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final isVerify = mission.type == MissionType.verify;
-    final steps = mission.steps(lang);
+    final steps = mission.steps(widget.lang);
 
     return Scaffold(
       body: SafeArea(
@@ -34,8 +126,8 @@ class MissionDetailScreen extends StatelessWidget {
                   ),
                   const Spacer(),
                   LangButton(
-                    lang: lang,
-                    onTap: () => showLanguageSheet(context, lang, onLangChanged),
+                    lang: widget.lang,
+                    onTap: () => showLanguageSheet(context, widget.lang, widget.onLangChanged),
                   ),
                 ],
               ),
@@ -66,7 +158,7 @@ class MissionDetailScreen extends StatelessWidget {
                             borderRadius: BorderRadius.circular(999),
                           ),
                           child: Text(
-                            mission.category(lang),
+                            mission.category(widget.lang),
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 12,
@@ -92,7 +184,7 @@ class MissionDetailScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 18),
                     Text(
-                      mission.title(lang),
+                      mission.title(widget.lang),
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 28,
@@ -103,7 +195,7 @@ class MissionDetailScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      mission.desc(lang),
+                      mission.desc(widget.lang),
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: .72),
                         fontSize: 15,
@@ -115,7 +207,11 @@ class MissionDetailScreen extends StatelessWidget {
                     Row(
                       children: [
                         Text(
-                          mission.status(lang),
+                          _status == 'COMPLETED'
+                              ? (en ? 'Completed' : '완료')
+                              : _status == 'IN_PROGRESS'
+                                  ? (en ? 'In Progress' : '진행 중')
+                                  : (en ? 'Available' : '수락 가능'),
                           style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w900,
@@ -123,7 +219,11 @@ class MissionDetailScreen extends StatelessWidget {
                         ),
                         const Spacer(),
                         Text(
-                          '${(mission.progress * 100).round()}%',
+                          _status == 'COMPLETED'
+                              ? '100%'
+                              : _status == 'IN_PROGRESS'
+                                  ? (en ? 'In progress' : '진행중')
+                                  : '0%',
                           style: TextStyle(
                             color: Colors.white.withValues(alpha: .72),
                             fontWeight: FontWeight.w900,
@@ -135,7 +235,11 @@ class MissionDetailScreen extends StatelessWidget {
                     ClipRRect(
                       borderRadius: BorderRadius.circular(999),
                       child: LinearProgressIndicator(
-                        value: mission.progress,
+                        value: _status == 'COMPLETED'
+                            ? 1.0
+                            : _status == 'IN_PROGRESS'
+                                ? 0.5
+                                : 0.0,
                         minHeight: 10,
                         color: Colors.white,
                         backgroundColor: const Color(0x33FFFFFF),
@@ -147,7 +251,7 @@ class MissionDetailScreen extends StatelessWidget {
               Header(title: en ? 'Practical phrase' : '실전 표현'),
               MissionPracticalPhraseCard(
                 mission: mission,
-                lang: lang,
+                lang: widget.lang,
               ),
               Header(title: en ? 'Steps' : '진행 단계'),
               ...List.generate(
@@ -193,31 +297,66 @@ class MissionDetailScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 12),
-              PrimaryButton(
-                label: isVerify
-                    ? (en ? 'Start verification' : '인증 시작하기')
-                    : (en ? 'Mark guide as read' : '가이드 읽음 처리'),
-                icon: isVerify ? Icons.camera_alt_rounded : Icons.check_rounded,
-                color: isVerify ? C.blue : C.blue,
-                onTap: () {
-                  if (isVerify) {
-                    Navigator.push(
+              if (_status == 'COMPLETED')
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 18),
+                  decoration: BoxDecoration(
+                    color: C.blueSoft,
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.verified_rounded, color: C.blue, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        en ? 'Mission completed' : '미션 완료됨',
+                        style: const TextStyle(
+                          color: C.blue,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else if (_status == 'AVAILABLE')
+                PrimaryButton(
+                  label: _busy
+                      ? (en ? 'Processing...' : '처리 중...')
+                      : (en ? 'Accept mission' : '미션 수락하기'),
+                  icon: Icons.flag_rounded,
+                  color: C.blue,
+                  onTap: _acceptMission,
+                )
+              else ...[
+                // IN_PROGRESS
+                if (isVerify)
+                  PrimaryButton(
+                    label: en ? 'Start verification' : '인증 시작하기',
+                    icon: Icons.camera_alt_rounded,
+                    color: C.blue,
+                    onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (_) => VerifyScreen(
                           mission: mission,
-                          lang: lang,
+                          lang: widget.lang,
                         ),
                       ),
-                    );
-                  } else {
-                    toast(
-                      context,
-                      en ? 'Guide marked as read.' : '가이드를 읽음 처리했습니다.',
-                    );
-                  }
-                },
-              ),
+                    ),
+                  )
+                else
+                  PrimaryButton(
+                    label: _busy
+                        ? (en ? 'Processing...' : '처리 중...')
+                        : (en ? 'Mark guide as read' : '가이드 읽음 처리'),
+                    icon: Icons.check_rounded,
+                    color: C.blue,
+                    onTap: _completeGuide,
+                  ),
+              ],
             ],
           ),
         ),

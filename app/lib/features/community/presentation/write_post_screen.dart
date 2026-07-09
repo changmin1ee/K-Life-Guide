@@ -30,7 +30,7 @@ class _WritePostScreenState extends State<WritePostScreen> {
     super.dispose();
   }
 
-  void submitPost() {
+  Future<void> submitPost() async {
     final title = titleController.text.trim();
     final body = bodyController.text.trim();
 
@@ -42,22 +42,34 @@ class _WritePostScreenState extends State<WritePostScreen> {
       return;
     }
 
-    communityPosts.value = [
-      CommunityPost(
-        board: selectedBoard,
-        titleKo: title,
-        titleEn: title,
-        metaKo: '방금 전 · 댓글 0 · 추천 0 · ${koCategories[selectedCategory]}',
-        metaEn: 'Just now · 0 replies · 0 likes · ${enCategories[selectedCategory]}',
-      ),
-      ...communityPosts.value,
-    ];
-
-    toast(
-      context,
-      en ? 'Post added to the community.' : '커뮤니티에 글이 추가되었습니다.',
-    );
-    Navigator.pop(context);
+    try {
+      final res = await ApiClient.dio.post('/api/posts', data: {
+        'titleKo': title,
+        'contentKo': body,
+        'boardType': selectedBoard == BoardFilter.qna ? 'QNA' : 'FREE',
+      });
+      if (res.data['isSuccess'] == true && mounted) {
+        final newPost = postFromApi(res.data['result'] as Map<String, dynamic>);
+        communityPosts.value = [newPost, ...communityPosts.value];
+        toast(
+          context,
+          en ? 'Post added to the community.' : '커뮤니티에 글이 추가되었습니다.',
+        );
+        Navigator.pop(context);
+      } else if (mounted) {
+        toast(
+          context,
+          en ? 'Failed to submit post.' : '게시글 등록에 실패했습니다.',
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        toast(
+          context,
+          en ? 'Network error. Please try again.' : '네트워크 오류가 발생했습니다.',
+        );
+      }
+    }
   }
 
   @override
@@ -211,7 +223,7 @@ class _WritePostScreenState extends State<WritePostScreen> {
               PrimaryButton(
                 label: en ? 'Submit post' : '게시글 등록하기',
                 icon: Icons.send_rounded,
-                onTap: submitPost,
+                onTap: () => submitPost(),
               ),
             ],
           ),

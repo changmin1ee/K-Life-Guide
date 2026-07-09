@@ -2,13 +2,9 @@ part of '../../../main.dart';
 
 class UserProgressState {
   const UserProgressState({
-    this.points = 2840,
-    this.xp = 680,
-    this.completedMissionTitles = const <String>{
-      '지하철 노선 확인하기',
-      '분리수거 방법 익히기',
-      '편의점에서 상품 구매하기',
-    },
+    this.points = 0,
+    this.xp = 0,
+    this.completedMissionTitles = const <String>{},
   });
 
   final int points;

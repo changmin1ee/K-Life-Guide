@@ -39,7 +39,30 @@ class _VerifyScreenState extends State<VerifyScreen> {
         busy = true;
         stage = 3;
       });
-      await Future.delayed(const Duration(milliseconds: 1200));
+
+      // 실제 API 호출
+      try {
+        final res = await ApiClient.dio.post(
+          '/api/missions/${widget.mission.id}/complete',
+          data: {'proofImageUrl': null}, // 추후 S3 업로드 연동 시 실제 URL 전달
+        );
+        if (res.data['isSuccess'] == true) {
+          final result = res.data['result'] as Map<String, dynamic>;
+          userProgress.value = UserProgressState(
+            points: result['newTotalPoints'] ?? userProgress.value.points,
+            xp: result['newTotalXp'] ?? userProgress.value.xp,
+            completedMissionTitles: {
+              ...userProgress.value.completedMissionTitles,
+              widget.mission.koTitle,
+            },
+          );
+          // 미션 목록 초기화 → 다음 홈 방문 시 자동 재로드
+          missionListNotifier.value = [];
+        }
+      } catch (_) {
+        // API 실패해도 UI는 완료로 처리 (fallback)
+      }
+
       if (!mounted) return;
       setState(() {
         busy = false;
@@ -48,7 +71,11 @@ class _VerifyScreenState extends State<VerifyScreen> {
       return;
     }
 
-    completeSheet(context, widget.mission, widget.lang);
+    await completeSheet(context, widget.mission, widget.lang);
+    if (mounted) {
+      // 시트 닫힌 후 VerifyScreen + MissionDetailScreen 모두 팝 → 미션 탭으로 복귀
+      Navigator.popUntil(context, (route) => route.isFirst);
+    }
   }
 
   @override

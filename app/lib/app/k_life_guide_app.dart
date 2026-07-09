@@ -10,9 +10,33 @@ class KLifeGuideApp extends StatefulWidget {
 class _KLifeGuideAppState extends State<KLifeGuideApp> {
   AppLang lang = AppLang.ko;
   bool loggedIn = false;
+  bool _checking = true; // 초기 토큰 확인 중
 
-  void changeLang(AppLang value) {
-    setState(() => lang = value);
+  @override
+  void initState() {
+    super.initState();
+    _checkLoginStatus();
+  }
+
+  Future<void> _checkLoginStatus() async {
+    final isLoggedIn = await AuthService.isLoggedIn();
+    if (isLoggedIn) {
+      await loadUserProgress();
+    }
+    setState(() {
+      loggedIn = isLoggedIn;
+      _checking = false;
+    });
+  }
+
+  void changeLang(AppLang value) => setState(() => lang = value);
+
+  Future<void> _handleLogin() async {
+    final success = await AuthService.signInWithGoogle();
+    if (success && mounted) {
+      await loadUserProgress();
+      setState(() => loggedIn = true);
+    }
   }
 
   @override
@@ -42,13 +66,15 @@ class _KLifeGuideAppState extends State<KLifeGuideApp> {
           }),
         ),
       ),
-      home: loggedIn
-          ? Tabs(lang: lang, onLangChanged: changeLang)
-          : LoginPage(
-              lang: lang,
-              onLangChanged: changeLang,
-              onLogin: () => setState(() => loggedIn = true),
-            ),
+      home: _checking
+          ? const Scaffold(body: Center(child: CircularProgressIndicator()))
+          : loggedIn
+              ? Tabs(lang: lang, onLangChanged: changeLang)
+              : LoginPage(
+                  lang: lang,
+                  onLangChanged: changeLang,
+                  onLogin: _handleLogin,
+                ),
     );
   }
 }

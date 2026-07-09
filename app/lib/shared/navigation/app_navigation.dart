@@ -1,12 +1,12 @@
 part of '../../main.dart';
 
-void openMission(
+Future<void> openMission(
   BuildContext context,
   Mission mission,
   AppLang lang,
   ValueChanged<AppLang> onLangChanged,
 ) {
-  Navigator.push(
+  return Navigator.push(
     context,
     MaterialPageRoute(
       builder: (_) => MissionDetailScreen(
@@ -27,10 +27,10 @@ void openPost(BuildContext context, String title, AppLang lang) {
   );
 }
 
-void completeSheet(BuildContext context, Mission mission, AppLang lang) {
+Future<void> completeSheet(BuildContext context, Mission mission, AppLang lang) {
   final en = lang == AppLang.en;
 
-  showModalBottomSheet(
+  return showModalBottomSheet(
     context: context,
     backgroundColor: Colors.white,
     shape: const RoundedRectangleBorder(

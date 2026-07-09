@@ -1,0 +1,50 @@
+spring:
+  profiles:
+    active: local,dev
+  datasource:
+    url: jdbc:mysql://localhost:3306/${MYSQL_DATABASE:klife_guide}?serverTimezone=Asia/Seoul&characterEncoding=utf8&createDatabaseIfNotExist=true
+    username: root
+    password: ${MYSQL_ROOT_PASSWORD:password}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: true
+    show-sql: true
+  data:
+    mongodb:
+      uri: mongodb://${MONGO_USERNAME:admin}:${MONGO_PASSWORD:password}@localhost:27017/${MONGO_DATABASE:klife_guide}?authSource=admin
+      database: ${MONGO_DATABASE:klife_guide}
+    redis:
+      host: localhost
+      port: 6379
+      password: ${REDIS_PASSWORD:}
+
+jwt:
+  secret: ${JWT_SECRET:klifeguide-secret-key-must-be-at-least-256-bits-long-for-hs256}
+  access-expiration: 86400000
+  refresh-expiration: 604800000
+
+google:
+  client-id: ${GOOGLE_CLIENT_ID:dummy-client-id}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /api-docs
+
+cloud:
+  aws:
+    s3:
+      bucket: klife-guide
+    region:
+      static: ap-northeast-2
+    credentials:
+      access-key: ${AWS_ACCESS_KEY:dummy}
+      secret-key: ${AWS_SECRET_KEY:dummy}
+    stack:
+      auto: false

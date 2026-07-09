@@ -1,39 +1,53 @@
 part of '../../../main.dart';
 
-class BadgeCollectionScreen extends StatelessWidget {
-  const BadgeCollectionScreen({
-    super.key,
-    required this.lang,
-  });
-
+class BadgeCollectionScreen extends StatefulWidget {
+  const BadgeCollectionScreen({super.key, required this.lang});
   final AppLang lang;
+  @override
+  State<BadgeCollectionScreen> createState() => _BadgeCollectionScreenState();
+}
 
-  bool get en => lang == AppLang.en;
+class _BadgeCollectionScreenState extends State<BadgeCollectionScreen> {
+  bool get en => widget.lang == AppLang.en;
+  List<Map<String, dynamic>> _badges = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBadges();
+  }
+
+  Future<void> _loadBadges() async {
+    try {
+      final res = await ApiClient.dio.get('/api/members/me/badges');
+      if (res.data['isSuccess'] == true) {
+        setState(() {
+          _badges = List<Map<String, dynamic>>.from(res.data['result']);
+          _loading = false;
+        });
+        return;
+      }
+    } catch (_) {}
+    setState(() => _loading = false);
+  }
+
+  IconData _badgeIcon(String iconKey) {
+    return switch (iconKey) {
+      'transit'  => Icons.train_rounded,
+      'food'     => Icons.restaurant_rounded,
+      'admin'    => Icons.badge_rounded,
+      'daily'    => Icons.home_rounded,
+      'safety'   => Icons.contact_phone_rounded,
+      'explorer' => Icons.explore_rounded,
+      'pro'      => Icons.workspace_premium_rounded,
+      _          => Icons.star_rounded,
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
-    final badges = [
-      [
-        Icons.train_rounded,
-        en ? 'Transit starter' : '교통 적응자',
-        en ? 'Completed first transport mission' : '교통 미션 첫 완료',
-      ],
-      [
-        Icons.restaurant_rounded,
-        en ? 'Kiosk challenger' : '키오스크 도전자',
-        en ? 'Tried a kiosk order' : '키오스크 주문 완료',
-      ],
-      [
-        Icons.badge_rounded,
-        en ? 'Admin learner' : '행정 준비생',
-        en ? 'Read an admin guide' : '행정 가이드 확인',
-      ],
-      [
-        Icons.language_rounded,
-        en ? 'Local explorer' : '생활 탐험가',
-        en ? 'Used local life tips' : '생활 정보 활용',
-      ],
-    ];
+    final earnedBadges = _badges.where((b) => b['earned'] == true).toList();
 
     return Scaffold(
       body: SafeArea(
@@ -66,54 +80,76 @@ class BadgeCollectionScreen extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              Header(title: en ? 'Earned badges' : '획득한 뱃지', action: '4'),
-              GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: badges.length,
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  mainAxisSpacing: 12,
-                  crossAxisSpacing: 12,
-                  childAspectRatio: .92,
-                ),
-                itemBuilder: (context, index) {
-                  final badge = badges[index];
-
-                  return TossCard(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        IconBox(
-                          icon: badge[0] as IconData,
-                          color: C.blue,
-                          bg: C.blueSoft,
-                        ),
-                        const Spacer(),
-                        Text(
-                          badge[1] as String,
-                          style: const TextStyle(
-                            color: C.black,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          badge[2] as String,
-                          style: const TextStyle(
-                            color: C.gray,
-                            fontSize: 12,
-                            height: 1.35,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
+              Header(
+                title: en ? 'Earned badges' : '획득한 뱃지',
+                action: '${earnedBadges.length}',
               ),
+              if (_loading)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(40),
+                    child: CircularProgressIndicator(),
+                  ),
+                )
+              else if (_badges.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Center(
+                    child: Text(
+                      en ? 'No badges yet.' : '아직 획득한 뱃지가 없어요.',
+                      style: const TextStyle(color: C.gray, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                )
+              else
+                GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: _badges.length,
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    mainAxisSpacing: 12,
+                    crossAxisSpacing: 12,
+                    childAspectRatio: .92,
+                  ),
+                  itemBuilder: (context, index) {
+                    final badge = _badges[index];
+                    final earned = badge['earned'] == true;
+
+                    return TossCard(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          IconBox(
+                            icon: _badgeIcon(badge['iconKey'] ?? ''),
+                            color: earned ? C.blue : C.gray,
+                            bg: earned ? C.blueSoft : const Color(0xFFF3F4F6),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            en ? (badge['enName'] ?? '') : (badge['koName'] ?? ''),
+                            style: TextStyle(
+                              color: earned ? C.black : C.gray,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            en ? (badge['enDesc'] ?? '') : (badge['koDesc'] ?? ''),
+                            style: const TextStyle(
+                              color: C.gray,
+                              fontSize: 12,
+                              height: 1.35,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
             ],
           ),
         ),

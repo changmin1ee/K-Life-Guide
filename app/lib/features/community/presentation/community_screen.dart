@@ -18,6 +18,26 @@ class _CommunityScreenState extends State<CommunityScreen> {
   BoardFilter filter = BoardFilter.qna;
 
   @override
+  void initState() {
+    super.initState();
+    _loadPosts();
+  }
+
+  Future<void> _loadPosts([String? boardType]) async {
+    try {
+      final params = boardType != null ? {'boardType': boardType} : null;
+      final res =
+          await ApiClient.dio.get('/api/posts', queryParameters: params);
+      if (res.data['isSuccess'] == true) {
+        communityPosts.value = (res.data['result'] as List)
+            .map((d) => postFromApi(d as Map<String, dynamic>))
+            .toList();
+        if (mounted) setState(() {});
+      }
+    } catch (_) {}
+  }
+
+  @override
   Widget build(BuildContext context) {
     final en = widget.lang == AppLang.en;
 

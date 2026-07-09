@@ -1,32 +1,41 @@
 part of '../../../main.dart';
 
-class MyPostsScreen extends StatelessWidget {
-  const MyPostsScreen({
-    super.key,
-    required this.lang,
-  });
-
+class MyPostsScreen extends StatefulWidget {
+  const MyPostsScreen({super.key, required this.lang});
   final AppLang lang;
+  @override
+  State<MyPostsScreen> createState() => _MyPostsScreenState();
+}
 
-  bool get en => lang == AppLang.en;
+class _MyPostsScreenState extends State<MyPostsScreen> {
+  bool get en => widget.lang == AppLang.en;
+  List<CommunityPost> _posts = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMyPosts();
+  }
+
+  Future<void> _loadMyPosts() async {
+    try {
+      final res = await ApiClient.dio.get('/api/members/me/posts');
+      if (res.data['isSuccess'] == true) {
+        setState(() {
+          _posts = (res.data['result'] as List)
+              .map((d) => postFromApi(d as Map<String, dynamic>))
+              .toList();
+          _loading = false;
+        });
+        return;
+      }
+    } catch (_) {}
+    setState(() => _loading = false);
+  }
 
   @override
   Widget build(BuildContext context) {
-    final posts = [
-      [
-        en ? 'My first time using the Korean subway' : '처음 한국 지하철을 타본 후기',
-        en ? 'Free board · 2 replies' : '자유게시판 · 댓글 2',
-      ],
-      [
-        en ? 'Where can I top up T-money?' : 'T머니 충전은 어디서 할 수 있나요?',
-        en ? 'Q&A · 3 replies' : 'Q&A · 댓글 3',
-      ],
-      [
-        en ? 'Useful words at convenience stores' : '편의점에서 자주 쓰는 말 정리',
-        en ? 'Free board · 1 reply' : '자유게시판 · 댓글 1',
-      ],
-    ];
-
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
@@ -58,15 +67,33 @@ class MyPostsScreen extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              Header(title: en ? 'Recent posts' : '최근 작성 글', action: '${posts.length}'),
-              ...posts.map(
-                (post) => PostTile(
-                  board: post[1].contains('Q&A') ? 'Q&A' : 'FREE',
-                  title: post[0],
-                  meta: post[1],
-                  onTap: () => openPost(context, post[0], lang),
+              Header(title: en ? 'Recent posts' : '최근 작성 글', action: '${_posts.length}'),
+              if (_loading)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(40),
+                    child: CircularProgressIndicator(),
+                  ),
+                )
+              else if (_posts.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Center(
+                    child: Text(
+                      en ? 'No posts yet.' : '아직 작성한 글이 없어요.',
+                      style: const TextStyle(color: C.gray, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                )
+              else
+                ..._posts.map(
+                  (post) => PostTile(
+                    board: post.board == BoardFilter.qna ? 'Q&A' : 'FREE',
+                    title: post.title(widget.lang),
+                    meta: post.meta(widget.lang),
+                    onTap: () => openPost(context, post.title(widget.lang), widget.lang),
+                  ),
                 ),
-              ),
             ],
           ),
         ),

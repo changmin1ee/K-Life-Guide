@@ -1,40 +1,39 @@
 part of '../../../main.dart';
 
-class PointHistoryScreen extends StatelessWidget {
-  const PointHistoryScreen({
-    super.key,
-    required this.lang,
-  });
-
+class PointHistoryScreen extends StatefulWidget {
+  const PointHistoryScreen({super.key, required this.lang});
   final AppLang lang;
+  @override
+  State<PointHistoryScreen> createState() => _PointHistoryScreenState();
+}
 
-  bool get en => lang == AppLang.en;
+class _PointHistoryScreenState extends State<PointHistoryScreen> {
+  bool get en => widget.lang == AppLang.en;
+  List<Map<String, dynamic>> _history = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadHistory();
+  }
+
+  Future<void> _loadHistory() async {
+    try {
+      final res = await ApiClient.dio.get('/api/members/me/points/history');
+      if (res.data['isSuccess'] == true) {
+        setState(() {
+          _history = List<Map<String, dynamic>>.from(res.data['result']);
+          _loading = false;
+        });
+        return;
+      }
+    } catch (_) {}
+    setState(() => _loading = false);
+  }
 
   @override
   Widget build(BuildContext context) {
-    final items = [
-      [
-        en ? 'T-money top-up mission' : 'T머니 카드 충전하기',
-        '+300P',
-        en ? 'Verification reward' : '인증 보상',
-      ],
-      [
-        en ? 'Kiosk order mission' : '키오스크로 주문하기',
-        '+400P',
-        en ? 'Verification reward' : '인증 보상',
-      ],
-      [
-        en ? 'ARC guide completed' : '외국인등록증 가이드 확인',
-        '+100P',
-        en ? 'Guide reward' : '가이드 보상',
-      ],
-      [
-        en ? 'Daily check-in' : '오늘의 출석',
-        '+50P',
-        en ? 'Daily bonus' : '일일 보너스',
-      ],
-    ];
-
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
@@ -67,51 +66,77 @@ class PointHistoryScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 24),
-              TossCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      en ? 'Current points' : '현재 포인트',
-                      style: const TextStyle(
-                        color: C.gray,
-                        fontWeight: FontWeight.w800,
-                      ),
+              ValueListenableBuilder<UserProgressState>(
+                valueListenable: userProgress,
+                builder: (context, state, _) {
+                  final progressValue = state.points > 0
+                      ? (state.points % 1000) / 1000.0
+                      : 0.0;
+                  return TossCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          en ? 'Current points' : '현재 포인트',
+                          style: const TextStyle(
+                            color: C.gray,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          '${state.points}P',
+                          style: const TextStyle(
+                            color: C.black,
+                            fontSize: 34,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -1.2,
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(999),
+                          child: LinearProgressIndicator(
+                            value: progressValue,
+                            minHeight: 10,
+                            color: C.blue,
+                            backgroundColor: C.blueSoft,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      '3,200P',
-                      style: TextStyle(
-                        color: C.black,
-                        fontSize: 34,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -1.2,
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(999),
-                      child: const LinearProgressIndicator(
-                        value: .72,
-                        minHeight: 10,
-                        color: C.blue,
-                        backgroundColor: C.blueSoft,
-                      ),
-                    ),
-                  ],
-                ),
+                  );
+                },
               ),
               Header(title: en ? 'Recent activity' : '최근 적립 내역'),
-              ...items.map(
-                (item) => ListRow(
-                  icon: Icons.add_rounded,
-                  iconColor: C.blue,
-                  iconBg: C.blueSoft,
-                  title: item[0],
-                  subtitle: '${item[2]} · ${item[1]}',
-                  onTap: () => toast(context, item[1]),
+              if (_loading)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(32),
+                    child: CircularProgressIndicator(),
+                  ),
+                )
+              else if (_history.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Center(
+                    child: Text(
+                      en ? 'No history yet.' : '아직 적립 내역이 없어요.',
+                      style: const TextStyle(color: C.gray, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                )
+              else
+                ..._history.map(
+                  (item) => ListRow(
+                    icon: Icons.add_rounded,
+                    iconColor: C.blue,
+                    iconBg: C.blueSoft,
+                    title: item['description'] ?? '',
+                    subtitle: '+${item['points']}P',
+                    onTap: () => toast(context, '+${item['points']}P'),
+                  ),
                 ),
-              ),
             ],
           ),
         ),

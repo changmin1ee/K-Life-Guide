@@ -45,7 +45,7 @@ class ProfileScreen extends StatelessWidget {
                     child: SummaryBox(
                       icon: Icons.workspace_premium_rounded,
                       title: en ? 'Badges' : '뱃지',
-                      value: progress.completedCount >= 5 ? '5' : '4',
+                      value: '-',
                     ),
                   ),
                 ),
@@ -88,9 +88,7 @@ class ProfileScreen extends StatelessWidget {
             MenuTile(
               icon: Icons.workspace_premium_rounded,
               title: en ? 'Badges' : '획득한 뱃지',
-              subtitle: progress.completedCount >= 5
-                  ? (en ? '5 earned' : '5개 획득')
-                  : (en ? '4 earned' : '4개 획득'),
+              subtitle: en ? 'View your badges' : '획득한 뱃지 보기',
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(

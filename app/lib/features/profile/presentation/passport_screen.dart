@@ -1,30 +1,61 @@
 part of '../../../main.dart';
 
-class PassportScreen extends StatelessWidget {
-  const PassportScreen({
-    super.key,
-    required this.lang,
-  });
-
+class PassportScreen extends StatefulWidget {
+  const PassportScreen({super.key, required this.lang});
   final AppLang lang;
+  @override
+  State<PassportScreen> createState() => _PassportScreenState();
+}
 
-  bool get en => lang == AppLang.en;
+class _PassportScreenState extends State<PassportScreen> {
+  bool get en => widget.lang == AppLang.en;
+  List<Map<String, dynamic>> _categories = [];
+  double _overall = 0.0;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPassport();
+  }
+
+  Future<void> _loadPassport() async {
+    try {
+      final res = await ApiClient.dio.get('/api/members/me/passport');
+      if (res.data['isSuccess'] == true) {
+        final data = res.data['result'];
+        final cats = List<Map<String, dynamic>>.from(
+            data['categoryAdaptations'] ?? []);
+        final total = cats.isEmpty
+            ? 0.0
+            : cats
+                  .map((c) => ((c['adaptationRate'] ?? 0.0) as num).toDouble())
+                  .reduce((a, b) => a + b) /
+                cats.length;
+        setState(() {
+          _categories = cats;
+          _overall = total;
+          _loading = false;
+        });
+        return;
+      }
+    } catch (_) {}
+    setState(() => _loading = false);
+  }
+
+  IconData _categoryIcon(String koCategory) {
+    return switch (koCategory) {
+      '교통' => Icons.train_rounded,
+      '음식' => Icons.restaurant_rounded,
+      '행정' => Icons.badge_rounded,
+      '생활' => Icons.home_rounded,
+      '안전' => Icons.contact_phone_rounded,
+      _    => Icons.star_rounded,
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
-    final areas = [
-      [Icons.train_rounded, en ? 'Transport' : '교통', '70%', C.blue, C.blueSoft],
-      [Icons.restaurant_rounded, en ? 'Food' : '음식', '45%', C.blue, C.blueSoft],
-      [Icons.badge_rounded, en ? 'Admin' : '행정', '30%', C.blue, C.blueSoft],
-      [Icons.home_rounded, en ? 'Daily life' : '생활', '55%', C.blue, C.blueSoft],
-    ];
-
-    final next = [
-      en ? 'Top up a T-money card' : 'T머니 카드 충전하기',
-      en ? 'Complete an admin guide' : '행정 가이드 확인하기',
-      en ? 'Write your first community post' : '커뮤니티 첫 글 작성하기',
-    ];
-
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
@@ -49,8 +80,11 @@ class PassportScreen extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                en ? 'A practical settlement map built from your missions.' : '미션 기록을 바탕으로 한국 생활 적응도를 보여주는 실용 지표입니다.',
-                style: const TextStyle(color: C.gray, fontSize: 15, height: 1.4, fontWeight: FontWeight.w600),
+                en
+                    ? 'A practical settlement map built from your missions.'
+                    : '미션 기록을 바탕으로 한국 생활 적응도를 보여주는 실용 지표입니다.',
+                style: const TextStyle(
+                    color: C.gray, fontSize: 15, height: 1.4, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 24),
               Container(
@@ -59,73 +93,131 @@ class PassportScreen extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: C.black,
                   borderRadius: BorderRadius.circular(30),
-                  boxShadow: const [BoxShadow(color: Color(0x26000000), blurRadius: 24, offset: Offset(0, 12))],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(en ? 'Settlement readiness' : '정착 준비도', style: TextStyle(color: Colors.white.withValues(alpha: .72), fontWeight: FontWeight.w800)),
-                    const SizedBox(height: 8),
-                    const Text('58%', style: TextStyle(color: Colors.white, fontSize: 42, fontWeight: FontWeight.w900, letterSpacing: -1.5)),
-                    const SizedBox(height: 10),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(999),
-                      child: const LinearProgressIndicator(value: .58, minHeight: 11, color: Colors.white, backgroundColor: Color(0x33FFFFFF)),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      en ? 'You are ready for basic transport and daily tasks. Admin missions need more progress.' : '기본 교통과 생활 미션은 안정적입니다. 행정 가이드 진행률을 더 높이면 좋습니다.',
-                      style: TextStyle(color: Colors.white.withValues(alpha: .7), height: 1.45, fontWeight: FontWeight.w600),
-                    ),
+                  boxShadow: const [
+                    BoxShadow(
+                        color: Color(0x26000000),
+                        blurRadius: 24,
+                        offset: Offset(0, 12))
                   ],
                 ),
+                child: _loading
+                    ? const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(24),
+                          child: CircularProgressIndicator(color: Colors.white),
+                        ),
+                      )
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            en ? 'Settlement readiness' : '정착 준비도',
+                            style: TextStyle(
+                                color: Colors.white.withValues(alpha: .72),
+                                fontWeight: FontWeight.w800),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            '${(_overall * 100).round()}%',
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 42,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: -1.5),
+                          ),
+                          const SizedBox(height: 10),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(999),
+                            child: LinearProgressIndicator(
+                              value: _overall,
+                              minHeight: 11,
+                              color: Colors.white,
+                              backgroundColor: const Color(0x33FFFFFF),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            en
+                                ? 'You are ready for basic transport and daily tasks. Admin missions need more progress.'
+                                : '기본 교통과 생활 미션은 안정적입니다. 행정 가이드 진행률을 더 높이면 좋습니다.',
+                            style: TextStyle(
+                                color: Colors.white.withValues(alpha: .7),
+                                height: 1.45,
+                                fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
               ),
               Header(title: en ? 'Readiness by area' : '분야별 적응도'),
-              ...areas.map(
-                (area) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: TossCard(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      children: [
-                        IconBox(icon: area[0] as IconData, color: area[3] as Color, bg: area[4] as Color),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(area[1] as String, style: const TextStyle(color: C.black, fontWeight: FontWeight.w900)),
-                              const SizedBox(height: 8),
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(999),
-                                child: LinearProgressIndicator(
-                                  value: double.parse((area[2] as String).replaceAll('%', '')) / 100,
-                                  minHeight: 8,
-                                  color: area[3] as Color,
-                                  backgroundColor: area[4] as Color,
-                                ),
-                              ),
-                            ],
+              if (_loading)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(32),
+                    child: CircularProgressIndicator(),
+                  ),
+                )
+              else if (_categories.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Center(
+                    child: Text(
+                      en ? 'No data yet.' : '아직 데이터가 없어요.',
+                      style: const TextStyle(
+                          color: C.gray, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                )
+              else
+                ..._categories.map(
+                  (cat) => Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: TossCard(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          IconBox(
+                            icon: _categoryIcon(cat['koCategory'] ?? ''),
+                            color: C.blue,
+                            bg: C.blueSoft,
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Text(area[2] as String, style: const TextStyle(color: C.black, fontWeight: FontWeight.w900)),
-                      ],
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  en
+                                      ? (cat['enCategory'] ?? '')
+                                      : (cat['koCategory'] ?? ''),
+                                  style: const TextStyle(
+                                      color: C.black,
+                                      fontWeight: FontWeight.w900),
+                                ),
+                                const SizedBox(height: 8),
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(999),
+                                  child: LinearProgressIndicator(
+                                    value: ((cat['adaptationRate'] ?? 0.0) as num)
+                                        .toDouble(),
+                                    minHeight: 8,
+                                    color: C.blue,
+                                    backgroundColor: C.blueSoft,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            '${(((cat['adaptationRate'] ?? 0.0) as num) * 100).round()}%',
+                            style: const TextStyle(
+                                color: C.black, fontWeight: FontWeight.w900),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
-              Header(title: en ? 'Next best actions' : '다음 추천 행동'),
-              ...next.map(
-                (title) => ListRow(
-                  icon: Icons.arrow_forward_rounded,
-                  iconColor: C.blue,
-                  iconBg: C.blueSoft,
-                  title: title,
-                  subtitle: en ? 'Recommended to improve readiness' : '정착 준비도를 높이기 위한 추천 항목',
-                  onTap: () => toast(context, en ? 'Recommendation selected.' : '추천 항목을 선택했습니다.'),
-                ),
-              ),
             ],
           ),
         ),
