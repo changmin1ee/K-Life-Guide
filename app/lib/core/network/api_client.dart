@@ -2,10 +2,10 @@ import 'package:dio/dio.dart';
 import 'token_storage.dart';
 
 class ApiClient {
+  // 실기기: adb reverse tcp:8080 tcp:8080 실행 후 localhost 사용
   static const String baseUrl = 'http://localhost:8080';
-  // 'http://10.0.2.2:8080'; // Android 에뮬레이터 → localhost
-  // iOS 시뮬레이터는 'http://localhost:8080' 사용
-  // 실기기 테스트는 컴퓨터 IP로 변경 (예: 'http://192.168.1.x:8080')
+  // 에뮬레이터: 'http://10.0.2.2:8080'
+  // 직접 IP: 'http://172.29.66.110:8080'
 
   static final Dio _dio = Dio(BaseOptions(
     baseUrl: baseUrl,

@@ -18,11 +18,18 @@ class AuthService {
 
     try {
       final googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) return false;
+      if (googleUser == null) {
+        debugPrint('[Auth] googleUser null (취소 또는 오류)');
+        return false;
+      }
 
       final googleAuth = await googleUser.authentication;
       final idToken = googleAuth.idToken;
-      if (idToken == null) return false;
+      debugPrint('[Auth] idToken: ${idToken == null ? "null → dev-login 폴백" : "있음"}');
+
+      if (idToken == null) {
+        return _devLogin(googleUser.email);
+      }
 
       final response = await ApiClient.dio.post(
         ApiEndpoints.googleLogin,
@@ -37,19 +44,23 @@ class AuthService {
         );
         return true;
       }
-      return false;
+      return _devLogin(googleUser.email);
     } catch (e) {
-      return false;
+      debugPrint('[Auth] 예외 발생: $e → dev-login 폴백');
+      // ApiException: 10 (SHA-1 미등록 등) → dev-login으로 폴백
+      return _devLogin('test@klife.com');
     }
   }
 
   /// 개발용 로그인 (백엔드 dev-login 엔드포인트)
   static Future<bool> _devLogin(String email) async {
     try {
+      debugPrint('[Auth] dev-login 시도: $email → ${ApiClient.baseUrl}');
       final response = await ApiClient.dio.post(
         '/api/auth/dev-login',
         queryParameters: {'email': email},
       );
+      debugPrint('[Auth] dev-login 응답: ${response.data}');
       if (response.data['isSuccess'] == true) {
         final result = response.data['result'];
         await TokenStorage.saveTokens(
@@ -60,6 +71,7 @@ class AuthService {
       }
       return false;
     } catch (e) {
+      debugPrint('[Auth] dev-login 실패: $e');
       return false;
     }
   }

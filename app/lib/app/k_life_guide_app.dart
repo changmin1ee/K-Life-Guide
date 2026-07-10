@@ -31,11 +31,17 @@ class _KLifeGuideAppState extends State<KLifeGuideApp> {
 
   void changeLang(AppLang value) => setState(() => lang = value);
 
+  final _messengerKey = GlobalKey<ScaffoldMessengerState>();
+
   Future<void> _handleLogin() async {
     final success = await AuthService.signInWithGoogle();
     if (success && mounted) {
       await loadUserProgress();
       setState(() => loggedIn = true);
+    } else if (mounted) {
+      _messengerKey.currentState?.showSnackBar(
+        const SnackBar(content: Text('로그인 실패 — 서버 연결 또는 계정 오류')),
+      );
     }
   }
 
@@ -44,6 +50,7 @@ class _KLifeGuideAppState extends State<KLifeGuideApp> {
     return MaterialApp(
       title: 'K-Life Guide',
       debugShowCheckedModeBanner: false,
+      scaffoldMessengerKey: _messengerKey,
       theme: ThemeData(
         useMaterial3: true,
         scaffoldBackgroundColor: C.bg,

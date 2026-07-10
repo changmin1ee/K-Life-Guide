@@ -1,5 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
+  <component name="CompilerConfiguration">
+    <bytecodeTargetLevel>
+      <module name="android.app" target="21" />
+      <module name="android.flutter_secure_storage" target="21" />
+      <module name="android.google_sign_in_android" target="21" />
+      <module name="android.jni" target="21" />
+      <module name="android.jni_flutter" target="21" />
+      <module name="gradle" target="21" />
+      <module name="gradle.main" target="11" />
+      <module name="gradle.test" target="11" />
+    </bytecodeTargetLevel>
+  </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
       <module name="klife-guide" options="-parameters" />

@@ -19,7 +19,7 @@ android {
         applicationId = "com.example.flutter_application_1"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = 21 // flutter_secure_storage 최소 요구사항
+        minSdk = flutter.minSdkVersion // flutter_secure_storage 최소 요구사항
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
